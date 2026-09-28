@@ -1,359 +1,256 @@
-import React, { useState, useEffect } from 'react';
-import {
-  PieChart as PieIcon, Calendar, Utensils, AlertTriangle, ShieldCheck, CheckCircle2, Clock, Bell, Info
-} from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { PatientPersona, CheckupReminder } from '../../mock/types';
-import { ChainBadge } from '../../components/ChainBadge';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Sun, ScanLine, Salad, CalendarCheck, Info, TrendingDown } from 'lucide-react';
+import { PatientPersona, MedicalRecord } from '../../mock/types';
+import { ProfileEditor, DietProfileDraft } from '../../components/ProfileEditor';
 import { mockApi } from '../../mock/api';
-import { MealScanCard } from '../../components/MealScanCard';
+import {
+  calculateBmi, classifyBmiAsian, calculateBmr, calculateTdee, calculateCalorieTarget,
+  ActivityLevel, BmiCategory, Sex
+} from '../../features/nutrition/calculator';
+import { buildMealPlan, deriveAvoidFlags, isFoodAllergy, needsDietitian } from '../../features/nutrition/dietPlan';
+import { readLabInsights, deriveCheckups, STRICT_CARB_HBA1C } from '../../features/nutrition/recordInsights';
+import { TabBar, TabDef } from './wellness/ui';
+import { TodayView, WellnessTabId } from './wellness/TodayView';
+import { ScanView } from './wellness/ScanView';
+import { PlanView } from './wellness/PlanView';
+import { CheckupsView } from './wellness/CheckupsView';
+import { ProgressView } from './wellness/ProgressView';
+import { todayLog, todayMacroIntake, hba1cTrend, weightTrend, weeklyAdherence } from '../../features/nutrition/demoProgress';
 
 interface WellnessTabProps {
   persona: PatientPersona;
   onShowToast: (msg: string) => void;
 }
 
-export const WellnessTab: React.FC<WellnessTabProps> = ({ persona, onShowToast }) => {
-  const [subTab, setSubTab] = useState<'diet' | 'checkups'>('diet');
-  const [viewDays, setViewDays] = useState<'1-day' | '7-day'>('1-day');
-  const [reminders, setReminders] = useState<CheckupReminder[]>([]);
+const TABS: TabDef<WellnessTabId>[] = [
+  { id: 'today', label: 'Today', icon: Sun },
+  { id: 'scan', label: 'Scan meal', icon: ScanLine },
+  { id: 'plan', label: 'Diet plan', icon: Salad },
+  { id: 'progress', label: 'Progress', icon: TrendingDown },
+  { id: 'checkups', label: 'Checkups', icon: CalendarCheck }
+];
 
-  // Form prefilled from vault
-  const [age, setAge] = useState(52);
-  const [weight, setWeight] = useState(74);
-  const [height, setHeight] = useState(172);
-  const [activity, setActivity] = useState('Moderate (3-4 days exercise)');
-  const [dietType, setDietType] = useState('Vegetarian');
+// Physiological values prefilled from the vault (not yet stored on the persona).
+const VAULT_BODY = { weightKg: 74, heightCm: 172, activity: 'moderate' as ActivityLevel, dietType: 'Vegetarian' as const };
+
+// Macros: kcal per gram, and share of the daily target. A high HbA1c switches to stricter carbs.
+// (Colours come from the chart theme so light and dark each use validated steps.)
+const MACROS = [
+  { name: 'Carbs' as const, kcalPerGram: 4 },
+  { name: 'Protein' as const, kcalPerGram: 4 },
+  { name: 'Fat' as const, kcalPerGram: 9 }
+];
+const MACRO_SPLIT = {
+  standard: { Carbs: 0.45, Protein: 0.25, Fat: 0.3 },
+  strictCarbs: { Carbs: 0.4, Protein: 0.3, Fat: 0.3 }
+};
+
+// Weight-goal adjustment applied to maintenance calories, by BMI band.
+const BMI_ADJUSTMENT: Record<BmiCategory, number> = { underweight: 300, normal: 0, overweight: -500, obese: -500 };
+
+function ageFromDob(dob: string): number {
+  const d = new Date(dob);
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age--;
+  return age;
+}
+
+function greeting(now = new Date()): string {
+  const h = now.getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+// Per-patient scan counter for today (browser-local; purely a convenience stat).
+function scanCountKey(personaId: string) {
+  return `medivault_meal_scans_${personaId}_${new Date().toISOString().slice(0, 10)}`;
+}
+function readScanCount(personaId: string): number {
+  try {
+    return Number(localStorage.getItem(scanCountKey(personaId))) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export const WellnessTab: React.FC<WellnessTabProps> = ({ persona, onShowToast }) => {
+  const [tab, setTab] = useState<WellnessTabId>('today');
+  const [records, setRecords] = useState<MedicalRecord[] | null>(null);
+  const [scansToday, setScansToday] = useState(() => readScanCount(persona.id));
+  const [draft, setDraft] = useState<DietProfileDraft | null>(null); // demo edits; null = vault values
+  const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
-    mockApi.getReminders().then(setReminders);
-  }, []);
+    // Same records the Records page shows; they drive the plan adjustments and the checkups.
+    let cancelled = false;
+    setRecords(null);
+    mockApi.getRecords('All', persona.id).then((r) => !cancelled && setRecords(r));
+    setScansToday(readScanCount(persona.id));
+    setDraft(null);
+    return () => {
+      cancelled = true;
+    };
+  }, [persona.id]);
 
-  // Calorie calculation
-  const targetCalories = 1850;
-  const macroData = [
-    { name: 'Complex Carbs (45%)', value: 208, color: '#0F766E' },
-    { name: 'Protein (25%)', value: 115, color: '#4F46E5' },
-    { name: 'Healthy Fats (30%)', value: 61, color: '#F59E0B' }
-  ];
+  // Effective profile = vault values, or the demo edits. Everything below reads from it.
+  const vaultProfile: DietProfileDraft = useMemo(
+    () => ({
+      ...VAULT_BODY,
+      conditions: persona.emergencyInfo.conditions,
+      foodAllergies: persona.emergencyInfo.allergies.filter(isFoodAllergy)
+    }),
+    [persona]
+  );
+  const profile = draft ?? vaultProfile;
+  const conditions = profile.conditions;
+  // Medicine/environmental allergies aren't editable here but still apply to meal scans.
+  const allergies = useMemo(
+    () => [...profile.foodAllergies, ...persona.emergencyInfo.allergies.filter((a) => !isFoodAllergy(a))],
+    [profile.foodAllergies, persona.emergencyInfo.allergies]
+  );
+  const effectivePersona: PatientPersona = useMemo(
+    () => ({ ...persona, emergencyInfo: { ...persona.emergencyInfo, conditions, allergies } }),
+    [persona, conditions, allergies]
+  );
+  const dietitianFor = needsDietitian(conditions);
+  const age = ageFromDob(persona.dob);
+  const sex: Sex = persona.gender.toLowerCase().startsWith('f') ? 'female' : 'male';
 
-  const meals = [
-    {
-      type: 'Breakfast',
-      time: '8:30 AM',
-      items: 'Ragi & Oats Dosa (2 pcs) + Mint Chutney + Boiled Egg / Paneer (50g)',
-      calories: '380 kcal',
-      gi: 'Low GI'
-    },
-    {
-      type: 'Lunch',
-      time: '1:30 PM',
-      items: 'Multigrain Bajra Roti (2) + Moong Dal (1 bowl) + Bhindi Sabzi + Cucumber Salad',
-      calories: '550 kcal',
-      gi: 'Glycemic Balanced'
-    },
-    {
-      type: 'Snack',
-      time: '5:00 PM',
-      items: 'Roasted Chana (1/2 cup) + Green Tea (No sugar)',
-      calories: '180 kcal',
-      gi: 'High Fiber'
-    },
-    {
-      type: 'Dinner',
-      time: '8:00 PM',
-      items: 'Brown Rice / Jowar Roti + Lauki Chana Dal + Steamed Sprouts',
-      calories: '440 kcal',
-      gi: 'Low GI'
+  // All numbers come from the nutrition calculator.
+  const bmi = calculateBmi(profile.weightKg, profile.heightCm);
+  const bmiBand = classifyBmiAsian(bmi);
+  const tdee = calculateTdee(calculateBmr(sex, profile.weightKg, profile.heightCm, age), profile.activity);
+  const targetCalories = calculateCalorieTarget(tdee, BMI_ADJUSTMENT[bmiBand.category], sex);
+
+  const labs = useMemo(() => readLabInsights(records ?? []), [records]);
+  const strictCarbs = labs.hba1c !== null && labs.hba1c.value >= STRICT_CARB_HBA1C;
+  const split = strictCarbs ? MACRO_SPLIT.strictCarbs : MACRO_SPLIT.standard;
+  const macros = MACROS.map((m) => {
+    const share = split[m.name as keyof typeof split];
+    return { ...m, grams: Math.round((targetCalories * share) / m.kcalPerGram), percent: Math.round(share * 100) };
+  });
+
+  const meals = useMemo(
+    () => buildMealPlan(targetCalories, conditions, profile.dietType, allergies),
+    [targetCalories, conditions, profile.dietType, allergies]
+  );
+  const avoidFlags = useMemo(() => deriveAvoidFlags(conditions, allergies), [conditions, allergies]);
+
+  // Demo visuals, anchored to real data where it exists (seeded per patient, labelled "Demo data").
+  const log = useMemo(() => todayLog(meals ?? []), [meals]);
+  const intake = useMemo(() => todayMacroIntake(log.eatenCalories, split, persona.id), [log.eatenCalories, split, persona.id]);
+  const macroRows = macros.map((m) => {
+    const eaten = intake.find((i) => i.name === m.name)!;
+    return { name: m.name, grams: eaten.grams, percent: eaten.percent, targetPercent: m.percent };
+  });
+  const macroProgress = macros.map((m) => ({ name: m.name, eaten: intake.find((i) => i.name === m.name)!.grams, target: m.grams }));
+  const isDiabetic = conditions.some((c) => /diabet|glyc|insulin/i.test(c));
+  const hba1c = useMemo(() => (records === null ? null : hba1cTrend(records, persona.id, isDiabetic)), [records, persona.id, isDiabetic]);
+  const weight = useMemo(() => weightTrend(profile.weightKg, profile.heightCm, persona.id), [profile.weightKg, profile.heightCm, persona.id]);
+  const adherence = useMemo(() => weeklyAdherence(meals ?? [], persona.id), [meals, persona.id]);
+  const dailyReference = {
+    carbsG: macros[0].grams,
+    proteinG: macros[1].grams,
+    fatG: macros[2].grams,
+    sugarG: 25, // WHO free-sugar guidance (~5% of energy)
+    sodiumMg: 2000 // WHO sodium limit
+  };
+
+  const checkups = useMemo(() => (records === null ? null : deriveCheckups(records, conditions)), [records, conditions]);
+  const nextCheckup = (checkups ?? []).filter((r) => r.dueState !== 'done').sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
+
+  const handleScanComplete = () => {
+    const next = scansToday + 1;
+    setScansToday(next);
+    try {
+      localStorage.setItem(scanCountKey(persona.id), String(next));
+    } catch {
+      /* storage unavailable: count stays in memory */
     }
-  ];
+  };
 
-  const avoidChips = [
-    'Refined Sugar & Sweets (Diabetes)',
-    'High Sodium & Pickles (Hypertension)',
-    'Refined Maida & White Bread',
-    'Penicillin Antibiotics (Allergy)',
-    'Deep Fried Snacks'
-  ];
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header & Sub-Tab Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-8 animate-fade-in">
+      <header className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Wellness & Preventive Care
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Wellness · {today}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            {greeting()}, {persona.name.split(' ')[0]}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Personalized glycemic nutrition engine and hospital-verified checkup schedule.
-          </p>
         </div>
+        <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      </header>
 
-        <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1">
-          <button
-            onClick={() => setSubTab('diet')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              subTab === 'diet'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <Utensils className="w-4 h-4" />
-            <span>Diet Planner</span>
-          </button>
+      <div key={tab} className="animate-fade-in">
+        {tab === 'today' && (
+          <TodayView
+            personaId={persona.id}
+            bmi={bmi}
+            targetCalories={dietitianFor ? null : targetCalories}
+            eatenCalories={log.eatenCalories}
+            macroProgress={macroProgress}
+            meals={meals}
+            logged={log.logged}
+            nextCheckup={nextCheckup}
+            checkupsLoading={checkups === null}
+            scansToday={scansToday}
+            onNavigate={setTab}
+          />
+        )}
 
-          <button
-            onClick={() => setSubTab('checkups')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              subTab === 'checkups'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Checkup Reminders ({reminders.filter((r) => r.dueState !== 'done').length})</span>
-          </button>
-        </div>
+        {tab === 'scan' && <ScanView persona={effectivePersona} onScanComplete={handleScanComplete} dailyReference={dailyReference} />}
+
+        {tab === 'plan' && (
+          <PlanView
+            profile={profile}
+            isDemoProfile={draft !== null}
+            age={age}
+            bmi={bmi}
+            bmiLabel={bmiBand.label}
+            tdee={tdee}
+            conditions={conditions}
+            allergies={allergies}
+            labs={labs}
+            labsLoading={records === null}
+            strictCarbs={strictCarbs}
+            targetCalories={targetCalories}
+            macroRows={macroRows}
+            meals={meals}
+            dietitianFor={dietitianFor}
+            avoidFlags={avoidFlags}
+            onEdit={() => setEditorOpen(true)}
+            onReset={() => setDraft(null)}
+          />
+        )}
+
+        {tab === 'progress' && (
+          <ProgressView hba1c={hba1c} weight={weight} adherence={adherence} mealTypes={(meals ?? []).map((m) => m.type)} />
+        )}
+
+        {tab === 'checkups' && (
+          <CheckupsView checkups={checkups} records={records} onTestReminder={() => onShowToast('Push notification test sent to registered mobile device!')} />
+        )}
       </div>
 
-      {subTab === 'diet' ? (
-        /* DIET SUB-TAB */
-        <div className="space-y-6 animate-fade-in">
-          {/* Prefilled Profile Parameters */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="font-bold text-slate-900 dark:text-white text-sm">
-                Vault Prefilled Physiological Profile
-              </span>
-              <span className="text-[10px] font-mono text-teal-600 bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded">
-                Auto-Synced from MediID
-              </span>
-            </div>
+      <p className="flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500 pt-4">
+        <Info className="w-3.5 h-3.5" />
+        General guidance only. Confirm with your doctor or dietitian.
+      </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 block font-mono">AGE</span>
-                <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">{age} Years</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 block font-mono">WEIGHT</span>
-                <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">{weight} kg</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 block font-mono">HEIGHT</span>
-                <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">{height} cm</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 block font-mono">CONDITIONS</span>
-                <span className="font-bold text-teal-700 dark:text-teal-300 mt-0.5 block truncate">
-                  {persona.emergencyInfo.conditions[0]}
-                </span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 block font-mono">DIET TYPE</span>
-                <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">{dietType}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Calorie & Macro Target Card with Recharts Donut */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Daily Calorie Target
-                  </h3>
-                  <p className="text-xs text-slate-500">Glycemic index tailored for Type 2 Diabetes</p>
-                </div>
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
-                  <button
-                    onClick={() => setViewDays('1-day')}
-                    className={`px-3 py-1 rounded-lg font-semibold ${
-                      viewDays === '1-day' ? 'bg-teal-700 text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    1-Day Plan
-                  </button>
-                  <button
-                    onClick={() => setViewDays('7-day')}
-                    className={`px-3 py-1 rounded-lg font-semibold ${
-                      viewDays === '7-day' ? 'bg-teal-700 text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    7-Day Cycle
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center my-4 h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={macroData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {macroData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="text-teal-700 dark:text-teal-400 font-bold block">208g</span>
-                  <span className="text-[10px] text-slate-400">Carbs (Low GI)</span>
-                </div>
-                <div>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold block">115g</span>
-                  <span className="text-[10px] text-slate-400">Protein</span>
-                </div>
-                <div>
-                  <span className="text-amber-500 font-bold block">61g</span>
-                  <span className="text-[10px] text-slate-400">Fats</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Avoid Chips & Medical Disclaimer */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card flex flex-col justify-between space-y-4">
-              <div>
-                <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Dietary "Avoid" Flags (Based on Conditions & Allergies)</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Derived from your verified health vault profile:
-                </p>
-
-                <div className="flex flex-wrap gap-2 pt-3">
-                  {avoidChips.map((chip, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
-                    >
-                      🚫 {chip}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/60 rounded-xl border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Important Notice:</strong> Confirm all diet modifications with your treating endocrinologist or certified dietitian before implementing.
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Meal photo scan */}
-          <MealScanCard persona={persona} />
-
-          {/* Indian Meal Cards */}
-          <div className="space-y-3">
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">
-              Customized Indian Meal Plan ({viewDays})
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {meals.map((meal) => (
-                <div
-                  key={meal.type}
-                  className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                      {meal.type}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400">{meal.time}</span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 dark:text-slate-300 min-h-[48px]">
-                    {meal.items}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-                    <span className="font-bold text-teal-700 dark:text-teal-400">{meal.calories}</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono text-[10px]">
-                      {meal.gi}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* CHECKUPS SUB-TAB */
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500">
-              Checkup reminders automatically recalculate based on hospital-anchored test reports.
-            </p>
-            <button
-              onClick={() => onShowToast('Push notification test sent to registered mobile device!')}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center gap-2 border border-slate-300 dark:border-slate-700"
-            >
-              <Bell className="w-4 h-4 text-teal-600" />
-              <span>Test Notification Toast</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {reminders.map((rem) => (
-              <div
-                key={rem.id}
-                className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      {rem.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Last completed: {rem.lastDoneDate}
-                    </p>
-                  </div>
-
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      rem.dueState === 'done'
-                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
-                        : rem.dueState === 'overdue'
-                        ? 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200 border border-rose-200 animate-pulse'
-                        : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200'
-                    }`}
-                  >
-                    {rem.dueStateLabel}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <span className="font-mono text-slate-700 dark:text-slate-300">
-                      Next Due: {rem.dueDate}
-                    </span>
-                  </div>
-
-                  {rem.hospitalVerified && rem.txHash && (
-                    <ChainBadge txHash={rem.txHash} label="Hospital Verified" />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <ProfileEditor
+        open={editorOpen}
+        value={profile}
+        vaultValue={vaultProfile}
+        isFemale={sex === 'female'}
+        onClose={() => setEditorOpen(false)}
+        onSave={(next) => {
+          setDraft(next);
+          setEditorOpen(false);
+          onShowToast('Demo profile applied — plan, flags, scans and checkups updated.');
+        }}
+      />
     </div>
   );
 };

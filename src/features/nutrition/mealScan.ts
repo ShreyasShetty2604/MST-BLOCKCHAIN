@@ -15,8 +15,17 @@ export interface ScannedDish {
   sodium?: string; // e.g. "high", "low", "45 mg per 100 ml", "unknown"
 }
 
+export interface NutritionEstimate {
+  carbsG: number;
+  proteinG: number;
+  fatG: number;
+  sugarG: number;
+  sodiumMg: number;
+}
+
 export interface MealAnalysis {
   noFood?: boolean;
+  nutrition?: NutritionEstimate; // whole-meal estimate, when Gemini provides one
   dishes: ScannedDish[];
 }
 
@@ -105,6 +114,7 @@ export type ScanStep = 'reading' | 'identifying' | 'checking';
 const PROMPT = `Identify each food, dish or drink in this photo (Indian cuisine likely). Max 5 items, max 6 ingredients per list, lowercase ingredient names, no descriptions.
 hidden = likely unseen ingredients typical of Indian cooking (peanuts/coconut in chutney, cashew/cream in gravy, ghee, sugar, jaggery, maida, besan, curd, sesame).
 Packaged items: packaged=true, read brand and short label text (e.g. "no sugar"), list sweeteners, caffeine, sodium (high/moderate/low/unknown).
+nutrition = rough total for the whole plate (carbs_g, protein_g, fat_g, sugar_g, sodium_mg).
 No food: {"noFood":true,"dishes":[]}.`;
 
 const list = (max: number) => ({ type: 'ARRAY', maxItems: max, items: { type: 'STRING' } });
@@ -131,6 +141,16 @@ const RESPONSE_SCHEMA = {
           sodium: { type: 'STRING', enum: ['high', 'moderate', 'low', 'unknown'] }
         },
         required: ['name', 'confidence', 'visible', 'hidden']
+      }
+    },
+    nutrition: {
+      type: 'OBJECT',
+      properties: {
+        carbs_g: { type: 'NUMBER' },
+        protein_g: { type: 'NUMBER' },
+        fat_g: { type: 'NUMBER' },
+        sugar_g: { type: 'NUMBER' },
+        sodium_mg: { type: 'NUMBER' }
       }
     }
   },
@@ -339,7 +359,15 @@ function parseAnalysis(text: string): MealAnalysis {
       sodium: optString(d.sodium)
     }));
 
-  return { noFood: json?.noFood === true || dishes.length === 0, dishes };
+  const n = json?.nutrition;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+  const parts = n ? [num(n.carbs_g), num(n.protein_g), num(n.fat_g), num(n.sugar_g), num(n.sodium_mg)] : [];
+  const nutrition =
+    parts.length === 5 && parts.every((v) => v !== null)
+      ? { carbsG: parts[0]!, proteinG: parts[1]!, fatG: parts[2]!, sugarG: parts[3]!, sodiumMg: parts[4]! }
+      : undefined;
+
+  return { noFood: json?.noFood === true || dishes.length === 0, dishes, nutrition };
 }
 
 // Downscale to max 768px and re-encode as ~70% JPEG; falls back to the original file if the
@@ -432,6 +460,18 @@ const CONDITION_RULES: { label: string; triggers: string[]; terms: string[]; sug
     triggers: ['hyperlipid', 'cholesterol', 'coronary', 'heart', 'cardiac', 'dyslipid'],
     terms: ['ghee', 'butter', 'cream', 'malai', 'vanaspati', 'dalda', 'deep fried', 'fried', 'pakora', 'samosa', 'puri', 'poori', 'bhatura', 'khoa', 'khoya'],
     suggestion: 'Ask for less ghee/butter, skip the cream, and prefer tandoori or steamed options over fried.'
+  },
+  {
+    label: 'Pregnancy',
+    triggers: ['pregnan'],
+    terms: ['raw papaya', 'papaya', 'alcohol', 'beer', 'wine', 'raw egg', 'unpasteurised', 'unpasteurized', 'shark', 'swordfish', 'king mackerel', 'caffeine'],
+    suggestion: 'Skip this item or check with your obstetrician — choose well-cooked, pasteurised and caffeine-free options.'
+  },
+  {
+    label: 'Anaemia',
+    triggers: ['anaemi', 'anemi'],
+    terms: ['tea', 'coffee', 'chai'],
+    suggestion: 'Have tea or coffee at least an hour away from meals — it reduces iron absorption.'
   },
   {
     label: 'Phenylketonuria',
@@ -585,7 +625,8 @@ export const DEMO_MEALS: DemoMeal[] = [
           visibleIngredients: ['toor dal', 'drumstick', 'tomato'],
           hiddenIngredients: ['tamarind', 'jaggery', 'asafoetida']
         }
-      ]
+      ],
+      nutrition: { carbsG: 68, proteinG: 16, fatG: 22, sugarG: 7, sodiumMg: 820 }
     }
   },
   {
@@ -601,7 +642,8 @@ export const DEMO_MEALS: DemoMeal[] = [
           visibleIngredients: ['sugar syrup', 'fried khoa dumplings'],
           hiddenIngredients: ['maida', 'ghee', 'cardamom', 'rose water']
         }
-      ]
+      ],
+      nutrition: { carbsG: 48, proteinG: 4, fatG: 14, sugarG: 38, sodiumMg: 60 }
     }
   },
   {
@@ -629,7 +671,8 @@ export const DEMO_MEALS: DemoMeal[] = [
           visibleIngredients: ['cucumber', 'onion', 'lemon'],
           hiddenIngredients: []
         }
-      ]
+      ],
+      nutrition: { carbsG: 58, proteinG: 18, fatG: 9, sugarG: 5, sodiumMg: 540 }
     }
   }
 ];
@@ -649,4 +692,119 @@ export function demoOnlyItems(real: DietProfile, demo: DietProfile): string[] {
     ...demo.allergies.filter((a) => !has(real.allergies, a)).map((a) => `${a} allergy`),
     ...demo.conditions.filter((c) => !has(real.conditions, c))
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers for other food tools (text-only Gemini JSON, allergen lookup).
+// They reuse the photo scan's model memory, fallback order, retries and timeouts.
+// ---------------------------------------------------------------------------
+
+export async function generateGeminiJson<T>(
+  prompt: string,
+  schema: object,
+  parse: (json: unknown) => T,
+  { maxOutputTokens = 300, label = 'Gemini' }: { maxOutputTokens?: number; label?: string } = {}
+): Promise<T> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new GeminiError('invalid-key');
+
+  const started = performance.now();
+  const candidates = modelOrder();
+  let lastError: GeminiError | null = null;
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { model } = candidates[i];
+    const timeoutMs = i === candidates.length - 1 ? undefined : ATTEMPT_TIMEOUT_MS;
+    const remembered = candidates[i].thinking;
+    const levels: ThinkingLevel[] =
+      remembered === 'none' ? ['none'] : [...THINKING_LEVELS.slice(THINKING_LEVELS.indexOf(remembered)), 'none'];
+
+    levelLoop: for (const thinking of levels) {
+      for (let attempt = 0; ; attempt++) {
+        let json: unknown;
+        try {
+          const text = await callTextModel(model, thinking, apiKey, prompt, schema, maxOutputTokens, timeoutMs);
+          try {
+            json = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, ''));
+          } catch {
+            throw new GeminiError('bad-response', text);
+          }
+        } catch (err) {
+          lastError = err instanceof GeminiError ? err : new GeminiError('bad-response', err);
+          console.warn(`[${label}] ${model} (thinking: ${thinking}) failed: ${lastError.reason}`, lastError.detail ?? '');
+          if (RETRYABLE_FAILURES.includes(lastError.reason) && attempt < RETRY_DELAYS_MS.length) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+            continue;
+          }
+          if (lastError.reason === 'bad-response' && /thinking/i.test(JSON.stringify(lastError.detail ?? ''))) continue levelLoop;
+          break levelLoop;
+        }
+        // The model answered. parse() errors (e.g. "not a food") are real answers: let them reach the caller.
+        console.info(`[${label}] ${model} (thinking: ${thinking}) — ${Math.round(performance.now() - started)} ms`);
+        saveLastGood({ model, thinking });
+        cooldownUntil.delete(model);
+        return parse(json);
+      }
+    }
+
+    if (!MODEL_SPECIFIC_FAILURES.includes(lastError!.reason)) break;
+    cooldownUntil.set(model, Date.now() + FAILURE_COOLDOWN_MS);
+  }
+  console.error(`[${label}] all models failed after ${Math.round(performance.now() - started)} ms`);
+  throw lastError ?? new GeminiError('model-not-found');
+}
+
+async function callTextModel(
+  model: string,
+  thinking: ThinkingLevel,
+  apiKey: string,
+  prompt: string,
+  schema: object,
+  maxOutputTokens: number,
+  timeoutMs?: number
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+  try {
+    let res: Response;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens,
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+            ...(thinking === 'none' ? {} : { thinkingConfig: { thinkingLevel: thinking } })
+          }
+        })
+      });
+    } catch (err) {
+      throw new GeminiError(controller.signal.aborted ? 'timeout' : 'network', err);
+    }
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok) throw new GeminiError(classifyError(res.status, data?.error), data?.error);
+    const parts: { text?: string; thought?: boolean }[] = data?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('');
+    if (!text) throw new GeminiError('bad-response', data);
+    return text;
+  } catch (err) {
+    if (err instanceof GeminiError) throw err;
+    throw new GeminiError(controller.signal.aborted ? 'timeout' : 'bad-response', err);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Which of the patient's allergies (if any) a list of ingredient/allergen terms hits.
+export function findAllergenConflict(terms: string[], allergies: string[]): { allergy: string; term: string } | null {
+  for (const check of buildAllergenChecks(allergies)) {
+    const hit = findTerm(terms, check.terms);
+    if (hit) return { allergy: check.allergy, term: hit.term };
+  }
+  return null;
 }

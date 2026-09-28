@@ -8,6 +8,7 @@ interface ChainBadgeProps {
   timestamp?: string;
   label?: string;
   className?: string;
+  tone?: 'indigo' | 'teal'; // teal for pages that use a single teal accent
 }
 
 export const ChainBadge: React.FC<ChainBadgeProps> = ({
@@ -15,7 +16,8 @@ export const ChainBadge: React.FC<ChainBadgeProps> = ({
   blockNumber = 4819204,
   timestamp = '2026-08-15 11:20 AM',
   label = 'On-chain verified',
-  className = ''
+  className = '',
+  tone = 'indigo'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,10 +33,14 @@ export const ChainBadge: React.FC<ChainBadgeProps> = ({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-all cursor-pointer font-mono group ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer font-mono group ${
+          tone === 'teal'
+            ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60'
+            : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/80'
+        } ${className}`}
         title="Click to view blockchain verification details"
       >
-        <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+        <ShieldCheck className={`w-3.5 h-3.5 group-hover:scale-110 transition-transform ${tone === 'teal' ? 'text-teal-600 dark:text-teal-400' : 'text-indigo-600 dark:text-indigo-400'}`} />
         <span>{label}</span>
         <span className="opacity-75 font-mono text-[11px]">({truncateHash(txHash)})</span>
       </button>
