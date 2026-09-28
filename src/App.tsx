@@ -10,6 +10,7 @@ import { DemoToolsDrawer } from './components/DemoToolsDrawer';
 import { LandingOnboardingPage } from './pages/LandingOnboardingPage';
 import { PatientLayout, PatientTab } from './pages/PatientApp/PatientLayout';
 import { HomeTab } from './pages/PatientApp/HomeTab';
+import { IdentitySecurityTab } from './pages/PatientApp/IdentitySecurityTab';
 import { RecordsTab } from './pages/PatientApp/RecordsTab';
 import { AccessTab } from './pages/PatientApp/AccessTab';
 import { AssistantTab } from './pages/PatientApp/AssistantTab';
@@ -77,7 +78,11 @@ export function App() {
       <div className="flex-1 flex flex-col">
         {role === 'landing' && (
           <LandingOnboardingPage
-            onCompleteOnboarding={() => setRole('patient')}
+            onCompleteOnboarding={async () => {
+              await refreshPersona();
+              setRole('patient');
+              setPatientTab('home');
+            }}
             onGoHospitalLogin={() => setRole('hospital')}
           />
         )}
@@ -90,6 +95,14 @@ export function App() {
                 reminders={reminders}
                 onOpenEmergency={() => setEmergencyOpen(true)}
                 onNavigateTab={(t) => setPatientTab(t)}
+              />
+            )}
+
+            {patientTab === 'identity' && (
+              <IdentitySecurityTab
+                persona={activePersona}
+                onShowToast={showToast}
+                onOpenEmergency={() => setEmergencyOpen(true)}
               />
             )}
 

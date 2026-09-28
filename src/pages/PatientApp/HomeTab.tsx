@@ -7,7 +7,7 @@ interface HomeTabProps {
   persona: PatientPersona;
   reminders: CheckupReminder[];
   onOpenEmergency: () => void;
-  onNavigateTab: (tab: 'records' | 'access' | 'wellness') => void;
+  onNavigateTab: (tab: 'identity' | 'records' | 'access' | 'wellness') => void;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -42,6 +42,36 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Health ID Card */}
       <HealthIdCard persona={persona} onOpenEmergency={onOpenEmergency} />
+
+      {/* Quick Identity Security Access Banner */}
+      <div
+        onClick={() => onNavigateTab('identity')}
+        className="p-4 rounded-2xl bg-gradient-to-r from-teal-900/10 via-slate-900/5 to-indigo-900/10 dark:from-teal-950/40 dark:to-indigo-950/40 border border-teal-500/20 hover:border-teal-500/40 transition-all cursor-pointer flex items-center justify-between shadow-sm group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-teal-600 text-white group-hover:scale-110 transition-transform">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                Sovereign Identity & Biometric Protection
+              </span>
+              <span className="text-[10px] font-mono bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-full font-semibold">
+                AES-256-GCM
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Passkey WebAuthn enclave, encrypted DNA reference, and Polygon Amoy proof verification.
+            </p>
+          </div>
+        </div>
+
+        <span className="text-xs font-bold text-teal-700 dark:text-teal-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+          <span>Manage Security</span>
+          <ArrowRight className="w-4 h-4" />
+        </span>
+      </div>
 
       {/* Vault Health Stat Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

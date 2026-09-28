@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Wallet, Building2, Search, QrCode, ShieldAlert, CheckCircle2, AlertTriangle,
-  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock
+  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock, UserPlus
 } from 'lucide-react';
 import { PatientPersona, MedicalRecord } from '../mock/types';
 import { ChainBadge } from '../components/ChainBadge';
@@ -14,7 +14,7 @@ interface HospitalPortalPageProps {
 
 export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowToast }) => {
   const [walletConnected, setWalletConnected] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('91-2345-6789-0123');
+  const [searchQuery, setSearchQuery] = useState('91-4827-6153-2043');
   const [showQrModal, setShowQrModal] = useState(false);
   const [patient, setPatient] = useState<PatientPersona | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -33,12 +33,31 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
   const [breakGlassConfirm, setBreakGlassConfirm] = useState(false);
   const [isSubmittingBreakGlass, setIsSubmittingBreakGlass] = useState(false);
 
-  // Add record modal states
+  // Register new patient modal states
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [regName, setRegName] = useState('Devendra Prasad');
+  const [regDob, setRegDob] = useState('1985-04-12');
+  const [regGender, setRegGender] = useState('Male');
+  const [regPhone, setRegPhone] = useState('+91 98450 11223');
+  const [regEmail, setRegEmail] = useState('devendra.p@example.com');
+  const [regBloodGroup, setRegBloodGroup] = useState('O+');
+  const [regAllergies, setRegAllergies] = useState('Sulfa Drugs, Shellfish');
+  const [regConditions, setRegConditions] = useState('Acute Appendicitis Evaluation, Mild Hypertension');
+  const [regEmergencyContact, setRegEmergencyContact] = useState('Meera Prasad');
+  const [regEmergencyPhone, setRegEmergencyPhone] = useState('+91 98450 11224');
+  const [regDnaRef, setRegDnaRef] = useState('DNA-LAB-771920');
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Add record modal states & dynamic clinical fields
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
   const [recTitle, setRecTitle] = useState('HbA1c & Fasting Glucose Report');
   const [recType, setRecType] = useState('Lab Report');
   const [docName, setDocName] = useState('Dr. A. R. Mehta');
   const [recSummary, setRecSummary] = useState('Glycemic parameters show steady improvement.');
+  const [customParamKey, setCustomParamKey] = useState('Blood Pressure');
+  const [customParamVal, setCustomParamVal] = useState('124/82 mmHg');
+  const [clinicalDiagnosis, setClinicalDiagnosis] = useState('Optimal Glycemic Control');
+  const [prescribedRx, setPrescribedRx] = useState('Metformin 500mg PO BD after meals');
   const [isSigningWallet, setIsSigningWallet] = useState(false);
 
   const handleConnectWallet = () => {
@@ -50,20 +69,70 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
     const q = idToSearch || searchQuery;
     if (!q) return;
     const found = await mockApi.getPatientById(q);
+    if (!found) {
+      onShowToast(`No patient found matching "${q}". You can register them below.`);
+      return;
+    }
     setPatient(found);
     setAccessState('none');
     setShowQrModal(false);
+    const patientRecs = await mockApi.getRecords('All', found.id);
+    setRecords(patientRecs);
+    onShowToast(`Loaded patient profile: ${found.name} (MediID: ${found.mediId})`);
+  };
+
+  const handleHospitalRegisterPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regName.trim() || !regDob) return;
+    setIsRegistering(true);
+
+    try {
+      const res = await mockApi.registerNewPatient({
+        name: regName.trim(),
+        dob: regDob,
+        gender: regGender,
+        phone: regPhone.trim(),
+        email: regEmail.trim() || `${regName.trim().toLowerCase().replace(/\s+/g, '.')}@example.com`,
+        bloodGroup: regBloodGroup,
+        allergies: regAllergies ? regAllergies.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        conditions: regConditions ? regConditions.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        emergencyContact: {
+          name: regEmergencyContact.trim() || 'Primary Contact',
+          relation: 'Family',
+          phone: regEmergencyPhone.trim() || regPhone.trim() || '+91 98765 00000'
+        },
+        dnaReferenceId: regDnaRef.trim() || `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`,
+        issuingLaboratory: 'City General Clinical Pathology Lab (NABL)',
+        registeredBy: 'hospital',
+        actorName: 'City General Hospital Triage Desk'
+      });
+
+      setPatient(res.persona);
+      setAccessState('approved');
+      setApprovedTier('Tier 2');
+      setShowRegisterModal(false);
+      onShowToast(`New Patient Enrolled! MediID: ${res.persona.mediId} anchored on-chain with Tier 2 consent.`);
+
+      const patientRecs = await mockApi.getRecords('All', res.persona.id);
+      setRecords(patientRecs);
+    } catch (err: any) {
+      onShowToast(err.message || 'Registration failed');
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   const handleSendRequest = () => {
+    if (!patient) return;
     setIsSendingRequest(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsSendingRequest(false);
       setAccessState('approved');
       setApprovedTier(requestedTier);
-      mockApi.getRecords().then(setRecords);
+      const recs = await mockApi.getRecords('All', patient.id);
+      setRecords(recs);
       onShowToast(`Patient approved ${requestedTier} access for 2 hours!`);
-    }, 1500);
+    }, 1200);
   };
 
   const handleTriggerBreakGlassSubmit = async (e: React.FormEvent) => {
@@ -93,22 +162,40 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
     setIsSigningWallet(true);
 
     try {
+      const detailsMap: Record<string, string> = {};
+      if (customParamKey.trim() && customParamVal.trim()) {
+        detailsMap[customParamKey.trim()] = customParamVal.trim();
+      }
+      if (clinicalDiagnosis.trim()) {
+        detailsMap['Clinical Diagnosis'] = clinicalDiagnosis.trim();
+      }
+      if (prescribedRx.trim()) {
+        detailsMap['Prescription / Treatment'] = prescribedRx.trim();
+      }
+      if (Object.keys(detailsMap).length === 0) {
+        detailsMap['Clinical Observation'] = 'Evaluated and documented during hospital encounter.';
+      }
+
       const res = await mockApi.addHospitalRecord(patient.id, 'City General Hospital', {
-        title: recTitle,
+        title: recTitle.trim() || 'Clinical Encounter Report',
         recordType: recType,
-        doctorName: docName,
-        summary: recSummary,
-        details: {
-          'Fasting Blood Sugar': '118 mg/dL',
-          'HbA1c': '6.9%',
-          'Status': 'Optimal Glycemic Control'
-        }
+        doctorName: docName.trim() || 'Dr. A. R. Mehta',
+        summary: recSummary.trim() || 'Clinical assessment completed.',
+        details: detailsMap
       });
 
       setShowAddRecordModal(false);
-      onShowToast(`Record anchored on-chain! Tx: ${res.txHash.slice(0, 10)}... Reminder updated.`);
-      const updated = await mockApi.getRecords();
+      onShowToast(`Record anchored on-chain! Tx: ${res.txHash.slice(0, 10)}... (AES-256-GCM Encrypted)`);
+      const updated = await mockApi.getRecords('All', patient.id);
       setRecords(updated);
+
+      // Reset record form fields
+      setRecTitle('HbA1c & Fasting Glucose Report');
+      setRecSummary('Glycemic parameters show steady improvement.');
+      setCustomParamKey('Blood Pressure');
+      setCustomParamVal('120/80 mmHg');
+      setClinicalDiagnosis('');
+      setPrescribedRx('');
     } finally {
       setIsSigningWallet(false);
     }
@@ -181,7 +268,15 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
             className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-semibold text-xs border border-slate-300 dark:border-slate-700 flex items-center gap-2"
           >
             <QrCode className="w-4 h-4 text-teal-600" />
-            <span>Scan QR Code</span>
+            <span>Scan QR</span>
+          </button>
+
+          <button
+            onClick={() => setShowRegisterModal(true)}
+            className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Register New Patient</span>
           </button>
 
           <button
@@ -193,6 +288,57 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
           </button>
         </div>
       </div>
+
+      {/* Empty State Triage Guidance */}
+      {!patient && (
+        <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card text-center space-y-5 animate-fade-in">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto border border-indigo-200 dark:border-indigo-800">
+            <Building2 className="w-8 h-8" />
+          </div>
+
+          <div className="max-w-lg mx-auto space-y-2">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              Triage Desk Ready — No Patient Currently Selected
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Search an existing patient's 14-digit MediID above, scan their dynamic QR card, or register an incoming walk-in patient to issue a new cryptographic MediID immediately.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-transform transform hover:scale-105"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Register New Patient & Issue MediID</span>
+            </button>
+
+            <span className="text-xs text-slate-400 font-medium px-2">or quick load demo patients:</span>
+
+            <button
+              onClick={() => handleSearchPatient('91-4827-6153-2043')}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-300 dark:border-slate-700"
+            >
+              Rajesh Kumar (Diabetic)
+            </button>
+
+            <button
+              onClick={() => handleSearchPatient('91-5454-3297-1210')}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-300 dark:border-slate-700"
+            >
+              Ananya Sharma (Healthy)
+            </button>
+
+            <button
+              onClick={() => handleSearchPatient('91-6828-7814-5965')}
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-300 dark:border-slate-700"
+            >
+              Vikram Malhotra (Hypertensive)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Patient Result View */}
       {patient && (
@@ -508,6 +654,52 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Diagnosis / Clinical Finding</label>
+                  <input
+                    type="text"
+                    value={clinicalDiagnosis}
+                    onChange={(e) => setClinicalDiagnosis(e.target.value)}
+                    placeholder="e.g. Type 2 Diabetes Mellitus"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Prescription / Medication</label>
+                  <input
+                    type="text"
+                    value={prescribedRx}
+                    onChange={(e) => setPrescribedRx(e.target.value)}
+                    placeholder="e.g. Metformin 500mg BD"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Diagnostic Parameter</label>
+                  <input
+                    type="text"
+                    value={customParamKey}
+                    onChange={(e) => setCustomParamKey(e.target.value)}
+                    placeholder="e.g. Blood Pressure or HbA1c"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reading / Result</label>
+                  <input
+                    type="text"
+                    value={customParamVal}
+                    onChange={(e) => setCustomParamVal(e.target.value)}
+                    placeholder="e.g. 120/80 mmHg or 6.8%"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Summary Notes</label>
                 <textarea
@@ -524,7 +716,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                   Cryptographic Wallet Signature Step
                 </span>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  Record payload will be signed with City General Hospital wallet (0x71C7...976F).
+                  Record payload will be encrypted with AES-256-GCM and signed with City General Hospital wallet (0x71C7...976F).
                 </p>
               </div>
 
@@ -550,6 +742,231 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                     <>
                       <ShieldCheck className="w-4 h-4" />
                       <span>Sign & Anchor On-Chain</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Register New Patient Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Hospital Triage: Register New Patient
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    City General Triage Desk • Polygon Amoy Identity Anchor
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleHospitalRegisterPatient} className="space-y-4 text-xs">
+              <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 flex items-start gap-3">
+                <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-indigo-900 dark:text-indigo-200 leading-relaxed">
+                  Generates a 14-digit Luhn-verified MediID and isolated Vault ID. Baseline emergency demographics are stored off-chain with AES-256-GCM encryption and anchored to Polygon blockchain.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Legal Patient Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Devendra Prasad"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Date of Birth *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={regDob}
+                    onChange={(e) => setRegDob(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={regGender}
+                    onChange={(e) => setRegGender(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Blood Group
+                  </label>
+                  <select
+                    value={regBloodGroup}
+                    onChange={(e) => setRegBloodGroup(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-rose-600 dark:text-rose-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Mobile / Contact Phone *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="+91 98450 11223"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="patient@example.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Emergency Allergies & Critical Contraindications
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Penicillin, NSAIDs, Peanuts (comma-separated)"
+                  value={regAllergies}
+                  onChange={(e) => setRegAllergies(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Active Conditions / Admission Complaint
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Acute Lower Abdominal Pain, Type 2 Diabetes"
+                  value={regConditions}
+                  onChange={(e) => setRegConditions(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Emergency Contact Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Meera Prasad (Spouse)"
+                    value={regEmergencyContact}
+                    onChange={(e) => setRegEmergencyContact(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Emergency Contact Phone
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="+91 98450 11224"
+                    value={regEmergencyPhone}
+                    onChange={(e) => setRegEmergencyPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Lab DNA Barcode / Clinical Reference ID (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="DNA-LAB-XXXXXX"
+                  value={regDnaRef}
+                  onChange={(e) => setRegDnaRef(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="px-7 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isRegistering ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generating Luhn MediID & Anchoring...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Register Patient & Issue MediID</span>
                     </>
                   )}
                 </button>

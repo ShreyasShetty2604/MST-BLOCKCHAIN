@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, QrCode, ShieldAlert, RotateCw, HeartPulse, Shield } from 'lucide-react';
+import { Copy, Check, QrCode, ShieldAlert, RotateCw, HeartPulse, Shield, ExternalLink, Lock } from 'lucide-react';
 import { PatientPersona } from '../mock/types';
 import { formatMediId } from '../lib/formatters';
 
@@ -11,8 +11,11 @@ interface HealthIdCardProps {
 export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmergency }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const formattedMediId = formatMediId(persona.mediId);
+  const vaultId = persona.vaultId || 'VLT-8F29A31B72C1';
+  const qrOpaqueUrl = `https://medivault.id/vault/${vaultId}`;
 
   const handleCopyId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -21,16 +24,23 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyUrl = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(qrOpaqueUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
   return (
     <div className="w-full max-w-md mx-auto perspective-1000 my-2">
       <div
-        className={`relative w-full h-[230px] rounded-2xl shadow-xl transition-transform duration-700 transform-style-3d cursor-pointer ${
+        className={`relative w-full h-[240px] rounded-2xl shadow-xl transition-transform duration-700 transform-style-3d cursor-pointer ${
           isFlipped ? 'rotate-y-180' : ''
         }`}
         onClick={() => setIsFlipped(!isFlipped)}
       >
         {/* FRONT OF CARD */}
-        <div className="absolute inset-0 w-full h-full rounded-2xl p-6 bg-hologram text-white flex flex-col justify-between overflow-hidden border border-white/20 backface-hidden shadow-glow-teal">
+        <div className="absolute inset-0 w-full h-full rounded-2xl p-5 bg-hologram text-white flex flex-col justify-between overflow-hidden border border-white/20 backface-hidden shadow-glow-teal">
           {/* Holographic Shim Overlay */}
           <div className="absolute inset-0 hologram-overlay pointer-events-none opacity-40 animate-hologram-shim" />
           <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -69,17 +79,29 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
           </div>
 
           {/* Middle Details */}
-          <div className="relative z-10 my-auto pt-2">
-            <span className="text-[10px] uppercase tracking-wider text-teal-200/80 block font-medium">
-              Cardholder Name
-            </span>
-            <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm">
-              {persona.name}
-            </h2>
+          <div className="relative z-10 my-auto pt-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-teal-200/80 block font-medium">
+                  Cardholder Name
+                </span>
+                <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm">
+                  {persona.name}
+                </h2>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase tracking-wider text-teal-200/80 block font-medium">
+                  Internal Vault ID
+                </span>
+                <span className="font-mono text-xs font-semibold text-teal-100 bg-white/10 px-2 py-0.5 rounded border border-white/20">
+                  {vaultId}
+                </span>
+              </div>
+            </div>
 
-            <div className="mt-3">
+            <div className="mt-2.5">
               <span className="text-[10px] uppercase tracking-wider text-teal-200/80 block font-medium">
-                14-Digit MediID
+                14-Digit Sovereign MediID
               </span>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="font-mono text-lg font-bold tracking-wider text-white select-all">
@@ -118,49 +140,61 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
           </div>
         </div>
 
-        {/* BACK OF CARD (QR CODE) */}
-        <div className="absolute inset-0 w-full h-full rounded-2xl p-6 bg-slate-900 text-white flex flex-col justify-between overflow-hidden border border-slate-700 rotate-y-180 backface-hidden shadow-2xl">
+        {/* BACK OF CARD (SECURE QR CODE) */}
+        <div className="absolute inset-0 w-full h-full rounded-2xl p-5 bg-slate-900 text-white flex flex-col justify-between overflow-hidden border border-slate-700 rotate-y-180 backface-hidden shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <QrCode className="w-4 h-4 text-teal-400" />
-              <span className="text-xs font-semibold text-slate-300">Scan MediID QR</span>
+              <span className="text-xs font-semibold text-slate-200">Secure Opaque Vault QR</span>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsFlipped(false);
               }}
-              className="text-xs text-teal-400 hover:underline flex items-center gap-1"
+              className="text-xs text-teal-400 hover:underline flex items-center gap-1 font-medium"
             >
               <RotateCw className="w-3 h-3" /> Flip back
             </button>
           </div>
 
-          <div className="flex items-center justify-center gap-6 my-auto">
-            {/* SVG QR CODE MOCK */}
-            <div className="p-3 bg-white rounded-xl shadow-lg border border-slate-200 shrink-0">
-              <svg className="w-28 h-28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 0h35v35H0zM5 5v25h25V5zM10 10h15v15H10zM65 0h35v35H65zM70 5v25h25V5zM75 10h15v15H75zM0 65h35v35H0zM5 70v25h25V70zM10 75h15v15H10z" fill="#0F766E"/>
-                <path d="M40 5h10v10H40zM55 5h5v5h-5zM45 20h15v5H45zM35 30h10v10H35zM50 30h15v5H50zM70 40h10v10H70zM85 45h10v10H85zM40 50h15v15H40zM60 55h15v5H60zM40 70h10v25H40zM55 70h10v10H55zM70 70h25v10H70zM70 85h10v15H70zM85 90h15v10H85z" fill="#1e293b"/>
-                <circle cx="50" cy="50" r="7" fill="#4F46E5" />
+          <div className="flex items-center justify-center gap-4 my-auto">
+            {/* SVG QR CODE */}
+            <div className="p-2.5 bg-white rounded-xl shadow-lg border border-slate-200 shrink-0">
+              <svg className="w-24 h-24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Standard QR Framing Markers */}
+                <path d="M0 0h32v32H0zM4 4v24h24V4zM8 8h16v16H8zM68 0h32v32H68zM72 4v24h24V4zM76 8h16v16H76zM0 68h32v32H0zM4 72v24h24V72zM8 76h16v16H8z" fill="#0F766E"/>
+                {/* Data pattern */}
+                <path d="M38 4h8v8H38zM52 4h6v6h-6zM44 18h14v6H44zM34 28h8v8H34zM48 28h14v6H48zM68 38h8v8H68zM82 42h8v8H82zM38 48h14v14H38zM58 52h14v6H58zM38 68h8v24H38zM52 68h8v8H52zM68 68h24v8H68zM68 82h8v14H68zM82 88h14v8H82z" fill="#1e293b"/>
+                <circle cx="50" cy="50" r="6" fill="#0D9488" />
               </svg>
             </div>
 
-            <div className="text-left space-y-1.5 text-xs">
-              <p className="text-slate-400 text-[11px]">Instant Hospital Triage Scan</p>
-              <p className="font-mono font-semibold text-teal-300 text-xs">{formattedMediId}</p>
-              <div className="pt-2">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">
-                  Chain: Polygon Amoy
-                </span>
+            <div className="text-left space-y-1.5 text-xs min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] text-teal-300 font-mono">
+                <Lock className="w-3 h-3 text-emerald-400" />
+                <span>Opaque Vault URL</span>
               </div>
-              <p className="text-[10px] text-slate-500 pt-1">
-                Hospital scanners read zero unencrypted data without patient key signature.
+              <p className="font-mono text-[11px] text-slate-300 truncate bg-slate-800/80 px-2 py-1 rounded border border-slate-700">
+                {qrOpaqueUrl}
+              </p>
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  onClick={handleCopyUrl}
+                  className="px-2 py-0.5 text-[10px] font-semibold rounded bg-teal-900/60 hover:bg-teal-800 text-teal-200 border border-teal-700/60 flex items-center gap-1 transition-colors"
+                >
+                  {copiedUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedUrl ? 'Copied' : 'Copy URL'}</span>
+                </button>
+                <span className="text-[10px] text-slate-400 font-mono">Polygon Amoy</span>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-tight pt-1">
+                Zero biometrics, DNA, or medical history is embedded in this QR. Scanning initiates authenticated consent verification.
               </p>
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-500 text-center border-t border-slate-800 pt-2 font-mono">
+          <div className="text-[10px] text-slate-500 text-center border-t border-slate-800 pt-1.5 font-mono">
             Tap anywhere to flip card back
           </div>
         </div>

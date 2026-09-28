@@ -1,7 +1,6 @@
-import React from 'react';
-import { Home, FileText, KeyRound, Bot, HeartPulse } from 'lucide-react';
+import { Home, FileText, KeyRound, Bot, HeartPulse, ShieldCheck } from 'lucide-react';
 
-export type PatientTab = 'home' | 'records' | 'access' | 'assistant' | 'wellness';
+export type PatientTab = 'home' | 'identity' | 'records' | 'access' | 'assistant' | 'wellness';
 
 interface PatientLayoutProps {
   activeTab: PatientTab;
@@ -16,6 +15,7 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
 }) => {
   const tabs: { id: PatientTab; label: string; icon: React.ReactNode }[] = [
     { id: 'home', label: 'Home', icon: <Home className="w-5 h-5" /> },
+    { id: 'identity', label: 'Identity & Security', icon: <ShieldCheck className="w-5 h-5" /> },
     { id: 'records', label: 'Records', icon: <FileText className="w-5 h-5" /> },
     { id: 'access', label: 'Access', icon: <KeyRound className="w-5 h-5" /> },
     { id: 'assistant', label: 'Assistant', icon: <Bot className="w-5 h-5" /> },

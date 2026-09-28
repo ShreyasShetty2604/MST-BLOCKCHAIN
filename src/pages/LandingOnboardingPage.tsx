@@ -23,12 +23,18 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   // Form states
   const [name, setName] = useState('Rajesh Kumar');
   const [dob, setDob] = useState('1974-05-14');
+  const [gender, setGender] = useState('Male');
   const [phone, setPhone] = useState('+91 98765 43210');
+  const [bloodGroup, setBloodGroup] = useState('B+');
+  const [allergies, setAllergies] = useState('Penicillin');
+  const [emergencyContactName, setEmergencyContactName] = useState('Sunita Kumar');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('+91 98765 43211');
   const [otp, setOtp] = useState(['5', '8', '2', '0', '1', '9']);
   const [isScanningBiometrics, setIsScanningBiometrics] = useState(false);
   const [biometricsDone, setBiometricsDone] = useState(false);
   const [dnaSaltedHash, setDnaSaltedHash] = useState('0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f');
-  const [dnaOpen, setDnaOpen] = useState(false);
+  const [isSubmittingVault, setIsSubmittingVault] = useState(false);
+  const [createdTxHash, setCreatedTxHash] = useState('0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2');
 
   // Step 5 created persona state
   const [createdPersona, setCreatedPersona] = useState<PatientPersona | null>(null);
@@ -51,24 +57,42 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
     setTimeout(() => {
       setIsScanningBiometrics(false);
       setBiometricsDone(true);
-    }, 2000);
+    }, 1500);
   };
 
   const handleFinalizeVault = async () => {
-    const p = await mockApi.getCurrentPatient();
-    setCreatedPersona({
-      ...p,
-      name: name || p.name,
-      dob: dob || p.dob,
-      phone: phone || p.phone,
-      dnaSaltedHash
-    });
-    setStep(5);
+    setIsSubmittingVault(true);
+    try {
+      const res = await mockApi.registerNewPatient({
+        name: name.trim() || 'Rajesh Kumar',
+        dob: dob || '1974-05-14',
+        gender,
+        phone: phone.trim() || '+91 98765 43210',
+        bloodGroup,
+        allergies: allergies ? allergies.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        conditions: [],
+        emergencyContact: {
+          name: emergencyContactName.trim() || 'Sunita Kumar',
+          relation: 'Spouse',
+          phone: emergencyContactPhone.trim() || phone || '+91 98765 43211'
+        },
+        dnaReferenceId: `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`,
+        issuingLaboratory: 'National Genomics Center (NABL)',
+        registeredBy: 'patient',
+        actorName: name || 'Patient Self-Registration'
+      });
 
-    // Simulate "Pending on-chain" -> "Confirmed" after 2.5 seconds
-    setTimeout(() => {
-      setIsConfirmedOnChain(true);
-    }, 2500);
+      setCreatedPersona(res.persona);
+      setCreatedTxHash(res.txHash);
+      setStep(5);
+
+      // Simulate "Pending on-chain" -> "Confirmed" after 1.5 seconds
+      setTimeout(() => {
+        setIsConfirmedOnChain(true);
+      }, 1500);
+    } finally {
+      setIsSubmittingVault(false);
+    }
   };
 
   return (
@@ -196,11 +220,75 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Mobile Number</label>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Gender</label>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Mobile Phone</label>
                       <input
                         type="text"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Blood Group</label>
+                      <select
+                        value={bloodGroup}
+                        onChange={(e) => setBloodGroup(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      >
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Known Allergies</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Penicillin, Peanuts, Sulfa"
+                      value={allergies}
+                      onChange={(e) => setAllergies(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Emergency Contact Person</label>
+                      <input
+                        type="text"
+                        value={emergencyContactName}
+                        onChange={(e) => setEmergencyContactName(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Emergency Contact Phone</label>
+                      <input
+                        type="text"
+                        value={emergencyContactPhone}
+                        onChange={(e) => setEmergencyContactPhone(e.target.value)}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
                       />
                     </div>
@@ -367,10 +455,20 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                   <button onClick={() => setStep(3)} className="text-xs text-slate-500">Back</button>
                   <button
                     onClick={handleFinalizeVault}
-                    className="px-8 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-2 shadow-lg"
+                    disabled={isSubmittingVault}
+                    className="px-8 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-2 shadow-lg disabled:opacity-50"
                   >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Create Vault On-Chain</span>
+                    {isSubmittingVault ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Anchoring Vault On-Chain...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Create Vault On-Chain</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -394,7 +492,7 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                 <div className="pt-2">
                   <PendingChainChip
                     isConfirmed={isConfirmedOnChain}
-                    txHash="0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2"
+                    txHash={createdTxHash}
                   />
                 </div>
 

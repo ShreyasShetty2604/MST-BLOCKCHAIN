@@ -7,6 +7,8 @@ import {
   INITIAL_CONSENTS, INITIAL_AUDIT_LOGS, INITIAL_REMINDERS,
   INITIAL_REQUESTS, INITIAL_STATS
 } from './seedData';
+import { generateMediID, hashMediID } from '../lib/mediId';
+import { generateVaultId } from '../lib/crypto';
 
 // Storage keys
 const KEYS = {
@@ -100,23 +102,273 @@ export const mockApi = {
     return personas.find((p) => p.id === activeId) || personas[0];
   },
 
-  getPatientById: async (mediIdOrId: string): Promise<PatientPersona | null> => {
+  registerNewPatient: async (input: {
+    name: string;
+    dob: string;
+    gender?: string;
+    phone?: string;
+    email?: string;
+    bloodGroup?: string;
+    allergies?: string[];
+    conditions?: string[];
+    emergencyContact?: { name: string; relation: string; phone: string };
+    dnaReferenceId?: string;
+    issuingLaboratory?: string;
+    biometricTemplate?: any;
+    registeredBy?: 'patient' | 'hospital';
+    actorName?: string;
+  }): Promise<{ persona: PatientPersona; vaultId: string; mediId: string; txHash: string }> => {
     await delay(500);
+
+    let vaultId = '';
+    let mediId = '';
+    let mediIdHash = '';
+    let dnaHash = '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8fa1b2c3d4e5f6a7b8c9d0e1f2';
+    let biometricHash = '0x9924e930f370ba054a37f5519ea818987ec347adcdcf783c675c97ea8a46b6eb';
+    let txHash = generateTxHash();
+
+    // 1. Call backend API to create Vault and Luhn-valid MediID
+    try {
+      const regRes = await fetch('/api/identity/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: input.name,
+          dob: input.dob,
+          gender: input.gender || 'Other',
+          phone: input.phone || '+91 98765 43210',
+          email: input.email || `${input.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+          bloodGroup: input.bloodGroup || 'O+',
+          allergies: input.allergies || [],
+          conditions: input.conditions || [],
+          emergencyContact: input.emergencyContact || {
+            name: 'Primary Contact',
+            relation: 'Family',
+            phone: input.phone || '+91 98765 00000'
+          },
+          requesterId: input.registeredBy === 'hospital' ? 'HOSPITAL_TRIAGE' : 'SYS_PATIENT_ONBOARDING',
+          requesterName: input.actorName || (input.registeredBy === 'hospital' ? 'Hospital Triage Desk' : 'Patient Self-Registration')
+        })
+      });
+
+      if (regRes.ok) {
+        const regData = await regRes.json();
+        vaultId = regData.vaultId;
+        mediId = regData.mediId;
+        mediIdHash = regData.mediIdHash;
+
+        // 2. Register Biometrics on backend (AES-256-GCM + SHA-256)
+        try {
+          const bioRes = await fetch('/api/identity/fingerprint/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vaultId,
+              sensorType: 'WebAuthn-Enclave-FIDO2',
+              biometricTemplate: input.biometricTemplate
+            })
+          });
+          if (bioRes.ok) {
+            const bioData = await bioRes.json();
+            if (bioData.biometricHash) biometricHash = bioData.biometricHash;
+          }
+        } catch {
+          // offline fallback
+        }
+
+        // 3. Register DNA Reference on backend (AES-256-GCM + SHA-256)
+        try {
+          const labRef = input.dnaReferenceId || `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`;
+          const dnaRes = await fetch('/api/identity/dna/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vaultId,
+              labReferenceId: labRef,
+              issuingLaboratory: input.issuingLaboratory || 'National Genomics Center (NABL)'
+            })
+          });
+          if (dnaRes.ok) {
+            const dnaData = await dnaRes.json();
+            if (dnaData.dnaHash) dnaHash = dnaData.dnaHash;
+          }
+        } catch {
+          // offline fallback
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    // Mathematical Luhn fallback if backend offline
+    if (!vaultId) vaultId = generateVaultId();
+    if (!mediId) mediId = generateMediID();
+    if (!mediIdHash) mediIdHash = hashMediID(mediId);
+
+    const personaId = `persona-${vaultId.toLowerCase().replace(/[^a-z0-9]/g, '').slice(-8)}`;
+
+    const newPersona: PatientPersona = {
+      id: personaId,
+      name: input.name,
+      mediId,
+      vaultId,
+      dob: input.dob,
+      gender: input.gender || 'Other',
+      phone: input.phone || '+91 98765 43210',
+      email: input.email || `${input.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+      dnaSaltedHash: dnaHash,
+      emergencyInfo: {
+        bloodGroup: input.bloodGroup || 'O+',
+        allergies: input.allergies || [],
+        conditions: input.conditions || [],
+        medications: [],
+        emergencyContact: input.emergencyContact || {
+          name: 'Primary Contact',
+          relation: 'Family',
+          phone: input.phone || '+91 98765 00000'
+        }
+      },
+      verifiedRecordCount: input.registeredBy === 'hospital' ? 1 : 0,
+      activeConsentCount: input.registeredBy === 'hospital' ? 1 : 0,
+      lastAccessTime: 'Just now'
+    };
+
+    // Save to personas list in localStorage
+    const personas: PatientPersona[] = JSON.parse(localStorage.getItem(KEYS.PERSONAS) || '[]');
+    personas.unshift(newPersona);
+    localStorage.setItem(KEYS.PERSONAS, JSON.stringify(personas));
+
+    // Set as active persona
+    localStorage.setItem(KEYS.PERSONA_ID, newPersona.id);
+
+    // Initialize records list for new persona
+    const recordsMap: Record<string, MedicalRecord[]> = JSON.parse(
+      localStorage.getItem(KEYS.RECORDS) || '{}'
+    );
+    recordsMap[newPersona.id] = [];
+
+    // If registered by hospital, add initial verified intake record and consent
+    if (input.registeredBy === 'hospital') {
+      const actor = input.actorName || 'City General Hospital';
+      const intakeRec: MedicalRecord = {
+        id: `rec-${Date.now()}`,
+        title: 'Triage Intake & Admission Assessment',
+        category: 'Hospital-verified',
+        recordType: 'Admission Note',
+        source: actor,
+        sourceType: 'hospital',
+        date: new Date().toISOString().split('T')[0],
+        doctor: 'Dr. Triage Registrar',
+        txHash,
+        blockNumber: 4820100 + Math.floor(Math.random() * 200),
+        version: 1,
+        status: 'verified',
+        payload: {
+          summary: 'Patient enrolled at hospital triage desk. Baseline emergency profile and vitals anchored.',
+          details: {
+            'Blood Group Verified': newPersona.emergencyInfo.bloodGroup,
+            'Triage Urgency': 'Standard Clinical Triage',
+            'Enrolled By': actor
+          },
+          signedBy: `${actor} Medical Registrar`,
+          signatureHash: generateHexHash()
+        },
+        hash: generateHexHash()
+      };
+      recordsMap[newPersona.id].push(intakeRec);
+
+      // Add active consent for 24 hours
+      const consents: Consent[] = JSON.parse(localStorage.getItem(KEYS.CONSENTS) || '[]');
+      consents.unshift({
+        id: `cons-${Date.now()}`,
+        hospitalId: 'hosp-01',
+        hospitalName: actor,
+        tier: 'Tier 2',
+        tierLabel: 'Full Clinical History Access',
+        grantedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        status: 'active',
+        txHash,
+        reason: 'Hospital Triage Registration & Clinical Admission'
+      });
+      localStorage.setItem(KEYS.CONSENTS, JSON.stringify(consents));
+    }
+
+    localStorage.setItem(KEYS.RECORDS, JSON.stringify(recordsMap));
+
+    // Audit log
+    const auditLogs: AuditLog[] = JSON.parse(localStorage.getItem(KEYS.AUDIT_LOGS) || '[]');
+    auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      eventType: 'Record Added',
+      actor: input.actorName || (input.registeredBy === 'hospital' ? 'City General Hospital Triage' : 'Patient Self-Registration'),
+      action: `Created new patient identity record: ${newPersona.name} (MediID: ${mediId}, Vault: ${vaultId})`,
+      timestamp: 'Just now',
+      txHash,
+      blockNumber: 4820100 + Math.floor(Math.random() * 200),
+      isEmergency: false
+    });
+    localStorage.setItem(KEYS.AUDIT_LOGS, JSON.stringify(auditLogs));
+
+    return { persona: newPersona, vaultId, mediId, txHash };
+  },
+
+  getPatientById: async (mediIdOrId: string): Promise<PatientPersona | null> => {
+    await delay(350);
     const personas: PatientPersona[] = JSON.parse(localStorage.getItem(KEYS.PERSONAS) || '[]');
     const cleanQuery = mediIdOrId.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
     const match = personas.find(
       (p) =>
         p.id.toLowerCase() === cleanQuery ||
+        (p.vaultId && p.vaultId.toLowerCase() === cleanQuery) ||
         p.mediId.replace(/-/g, '').toLowerCase().includes(cleanQuery.replace(/-/g, '')) ||
         p.mediId.toLowerCase() === cleanQuery
     );
-    return match || personas[0]; // fallback for demo if query entered
+    if (match) return match;
+
+    // Check if the query is a valid Luhn MediID or vaultId in backend
+    try {
+      const res = await fetch(`/api/identity/${cleanQuery.toUpperCase()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.vault) {
+          const v = data.vault;
+          const newP: PatientPersona = {
+            id: `persona-${v.vaultId.toLowerCase().replace(/[^a-z0-9]/g, '').slice(-8)}`,
+            name: v.name,
+            mediId: v.mediId,
+            vaultId: v.vaultId,
+            dob: v.dob,
+            gender: 'Unspecified',
+            phone: v.phoneMasked || '+91 98*** **000',
+            email: `${v.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+            emergencyInfo: {
+              bloodGroup: v.bloodGroup,
+              allergies: v.allergies,
+              conditions: v.conditions,
+              medications: [],
+              emergencyContact: v.emergencyContact
+            },
+            verifiedRecordCount: 0,
+            activeConsentCount: 0,
+            lastAccessTime: 'Just now'
+          };
+          personas.push(newP);
+          localStorage.setItem(KEYS.PERSONAS, JSON.stringify(personas));
+          return newP;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    return null;
   },
 
   // Records Management
-  getRecords: async (category?: RecordCategory | 'All'): Promise<MedicalRecord[]> => {
-    await delay(450);
-    const activeId = localStorage.getItem(KEYS.PERSONA_ID) || 'persona-diabetic';
+  getRecords: async (category?: RecordCategory | 'All', patientId?: string): Promise<MedicalRecord[]> => {
+    await delay(350);
+    const activeId = patientId || localStorage.getItem(KEYS.PERSONA_ID) || 'persona-diabetic';
     const recordsMap: Record<string, MedicalRecord[]> = JSON.parse(
       localStorage.getItem(KEYS.RECORDS) || '{}'
     );
@@ -130,25 +382,60 @@ export const mockApi = {
     recordType: string;
     summary: string;
     details: Record<string, string>;
+    category?: RecordCategory;
   }): Promise<{ record: MedicalRecord; txHash: string }> => {
-    await delay(750);
+    await delay(600);
     const activeId = localStorage.getItem(KEYS.PERSONA_ID) || 'persona-diabetic';
+    const personas: PatientPersona[] = JSON.parse(localStorage.getItem(KEYS.PERSONAS) || '[]');
+    const currentPersona = personas.find((p) => p.id === activeId) || personas[0];
+    const vaultId = currentPersona?.vaultId || 'VLT-8F29A31B72C1';
+
+    let txHash = generateTxHash();
+    let recordHash = generateHexHash();
+    let blockNumber = 4820000 + Math.floor(Math.random() * 500);
+
+    // Call backend endpoint to perform authenticated AES-256-GCM encryption & SHA-256 hash
+    try {
+      const res = await fetch('/api/records/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vaultId,
+          title: input.title,
+          category: input.category || 'Self-declared',
+          recordType: input.recordType,
+          source: 'Patient (Self-declared)',
+          sourceType: 'self',
+          summary: input.summary,
+          details: input.details
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.record) {
+          txHash = data.record.txHash || txHash;
+          recordHash = data.record.recordHash || recordHash;
+          blockNumber = data.record.blockNumber || blockNumber;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     const recordsMap: Record<string, MedicalRecord[]> = JSON.parse(
       localStorage.getItem(KEYS.RECORDS) || '{}'
     );
-    const txHash = generateTxHash();
-    const recordHash = generateHexHash();
 
     const newRec: MedicalRecord = {
       id: `rec-${Date.now()}`,
       title: input.title,
-      category: 'Self-declared',
+      category: input.category || 'Self-declared',
       recordType: input.recordType,
       source: 'Patient (Self-declared)',
       sourceType: 'self',
       date: new Date().toISOString().split('T')[0],
       txHash,
-      blockNumber: 4820000 + Math.floor(Math.random() * 500),
+      blockNumber,
       version: 1,
       status: 'self-declared',
       payload: {
@@ -167,8 +454,8 @@ export const mockApi = {
     auditLogs.unshift({
       id: `aud-${Date.now()}`,
       eventType: 'Record Added',
-      actor: 'Patient (Self-declared)',
-      action: `Added self-declared record: ${input.title}`,
+      actor: `${currentPersona?.name || 'Patient'} (Self-declared)`,
+      action: `Anchored self-declared medical record: ${input.title} (AES-256-GCM encrypted)`,
       timestamp: 'Just now',
       txHash,
       blockNumber: newRec.blockNumber,
@@ -182,41 +469,90 @@ export const mockApi = {
   addHospitalRecord: async (
     patientId: string,
     hospitalName: string,
-    input: { title: string; recordType: string; doctorName: string; summary: string; details: Record<string, string> }
+    input: {
+      title: string;
+      recordType: string;
+      doctorName: string;
+      summary: string;
+      details: Record<string, string>;
+      category?: RecordCategory;
+    }
   ): Promise<{ record: MedicalRecord; txHash: string }> => {
-    await delay(800);
+    await delay(700);
+    const personas: PatientPersona[] = JSON.parse(localStorage.getItem(KEYS.PERSONAS) || '[]');
+    const patient = personas.find((p) => p.id === patientId || p.mediId === patientId || p.vaultId === patientId);
+    const vaultId = patient?.vaultId || 'VLT-8F29A31B72C1';
+
+    let txHash = generateTxHash();
+    let signatureHash = generateHexHash();
+    let recordHash = generateHexHash();
+    let blockNumber = 4820100 + Math.floor(Math.random() * 500);
+
+    // Call backend endpoint to perform authenticated AES-256-GCM encryption & SHA-256 hash
+    try {
+      const res = await fetch('/api/records/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vaultId,
+          title: input.title,
+          category: input.category || 'Hospital-verified',
+          recordType: input.recordType,
+          source: hospitalName,
+          sourceType: 'hospital',
+          doctor: input.doctorName,
+          summary: input.summary,
+          details: input.details
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.record) {
+          txHash = data.record.txHash || txHash;
+          recordHash = data.record.recordHash || recordHash;
+          blockNumber = data.record.blockNumber || blockNumber;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
     const recordsMap: Record<string, MedicalRecord[]> = JSON.parse(
       localStorage.getItem(KEYS.RECORDS) || '{}'
     );
-    const txHash = generateTxHash();
-    const signatureHash = generateHexHash();
-    const recordHash = generateHexHash();
 
     const newRec: MedicalRecord = {
       id: `rec-${Date.now()}`,
       title: input.title,
-      category: 'Hospital-verified',
+      category: input.category || 'Hospital-verified',
       recordType: input.recordType,
       source: hospitalName,
       sourceType: 'hospital',
       date: new Date().toISOString().split('T')[0],
       doctor: input.doctorName,
       txHash,
-      blockNumber: 4820100 + Math.floor(Math.random() * 500),
+      blockNumber,
       version: 1,
       status: 'verified',
       payload: {
         summary: input.summary,
         details: input.details,
-        signedBy: `${hospitalName} Medical Registrar`,
+        signedBy: `${hospitalName} (${input.doctorName})`,
         signatureHash
       },
       hash: recordHash
     };
 
-    if (!recordsMap[patientId]) recordsMap[patientId] = [];
-    recordsMap[patientId].unshift(newRec);
+    const targetKey = patient ? patient.id : patientId;
+    if (!recordsMap[targetKey]) recordsMap[targetKey] = [];
+    recordsMap[targetKey].unshift(newRec);
     localStorage.setItem(KEYS.RECORDS, JSON.stringify(recordsMap));
+
+    // Update verified record count on persona
+    if (patient) {
+      patient.verifiedRecordCount = (patient.verifiedRecordCount || 0) + 1;
+      localStorage.setItem(KEYS.PERSONAS, JSON.stringify(personas));
+    }
 
     // Audit log
     const auditLogs: AuditLog[] = JSON.parse(localStorage.getItem(KEYS.AUDIT_LOGS) || '[]');
@@ -224,7 +560,7 @@ export const mockApi = {
       id: `aud-${Date.now()}`,
       eventType: 'Record Added',
       actor: `${hospitalName} (${input.doctorName})`,
-      action: `Anchored hospital-verified record: ${input.title}`,
+      action: `Anchored hospital-verified record: ${input.title} (AES-256-GCM encrypted)`,
       timestamp: 'Just now',
       txHash,
       blockNumber: newRec.blockNumber,

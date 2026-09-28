@@ -20,10 +20,25 @@ export interface PatientPersona {
   email: string;
   avatarUrl?: string;
   dnaSaltedHash?: string;
+  vaultId?: string;
   emergencyInfo: EmergencyInfo;
   verifiedRecordCount: number;
   activeConsentCount: number;
   lastAccessTime: string;
+}
+
+export interface IdentitySecurityState {
+  vaultId: string;
+  mediId: string;
+  mediIdHash: string;
+  isMediIdValid: boolean;
+  fingerprintProtected: boolean;
+  fingerprintHash: string;
+  dnaProtected: boolean;
+  dnaReferenceId: string;
+  dnaHash: string;
+  encryptionActive: 'AES-256-GCM';
+  blockchainIntegrity: 'VERIFIED' | 'TAMPERED' | 'CHECKING';
 }
 
 export interface RecordVersionDiff {

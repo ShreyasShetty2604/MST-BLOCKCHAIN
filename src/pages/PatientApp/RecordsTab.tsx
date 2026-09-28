@@ -221,6 +221,49 @@ export const RecordsTab: React.FC = () => {
             </p>
 
             <form onSubmit={handleAddSubmit} className="space-y-3 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-slate-500 font-medium">Quick Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTitle('Morning Fasting Glucose Check');
+                    setRecordType('Vital Signs');
+                    setSummary('Routine home glucometer check before breakfast.');
+                    setDetailKey('Blood Glucose');
+                    setDetailVal('112 mg/dL');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-medium border border-slate-200 dark:border-slate-700"
+                >
+                  Glucose Log
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTitle('Home Blood Pressure Reading');
+                    setRecordType('Vital Signs');
+                    setSummary('Evening seated blood pressure reading using digital cuff.');
+                    setDetailKey('Blood Pressure');
+                    setDetailVal('122/80 mmHg (Pulse: 72 bpm)');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-medium border border-slate-200 dark:border-slate-700"
+                >
+                  BP Check
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTitle('Mild Peanut Allergy Reaction');
+                    setRecordType('Allergy Log');
+                    setSummary('Developed mild itchy hives on forearm after accidental peanut trace exposure.');
+                    setDetailKey('Reaction Severity');
+                    setDetailVal('Grade 1 Mild - Resolved with Cetirizine 10mg');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-medium border border-slate-200 dark:border-slate-700"
+                >
+                  Allergy Incident
+                </button>
+              </div>
+
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Title</label>
                 <input
@@ -243,6 +286,7 @@ export const RecordsTab: React.FC = () => {
                   <option value="Allergy Log">Allergy Log</option>
                   <option value="Medication Log">Medication Log</option>
                   <option value="Symptom Journal">Symptom Journal</option>
+                  <option value="Vital Signs">Vital Signs</option>
                   <option value="Condition Declaration">Condition Declaration</option>
                   <option value="Blood Group Declaration">Blood Group Declaration</option>
                 </select>
@@ -280,6 +324,10 @@ export const RecordsTab: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
                   />
                 </div>
+              </div>
+
+              <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl border border-teal-200 dark:border-teal-900 text-[11px] text-teal-900 dark:text-teal-200">
+                🔒 Protected by AES-256-GCM authenticated encryption. SHA-256 integrity hash is anchored directly on Polygon Amoy.
               </div>
 
               <div className="pt-3 flex justify-end gap-2">
