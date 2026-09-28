@@ -10,6 +10,7 @@ import { mockApi } from '../mock/api';
 import { registerDeviceBiometric, scanDeviceBiometric } from '../lib/biometrics';
 import { CameraQrScannerModal } from '../components/CameraQrScannerModal';
 import { HospitalStaffSession } from './HospitalLandingPage';
+import { CANONICAL_DOCTORS } from '../data/patientRecords';
 
 interface HospitalPortalPageProps {
   onShowToast: (msg: string) => void;
@@ -917,8 +918,16 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                     type="text"
                     value={docName}
                     onChange={(e) => setDocName(e.target.value)}
+                    list="hospital-doctor-directory"
+                    placeholder="Search or enter a doctor's name"
+                    autoComplete="off"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
                   />
+                  <datalist id="hospital-doctor-directory">
+                    {CANONICAL_DOCTORS.map((doctor) => (
+                      <option key={doctor.id} value={doctor.name} label={`${doctor.specialty} · ${doctor.hospital}`} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 

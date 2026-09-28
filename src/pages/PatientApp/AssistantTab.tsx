@@ -61,6 +61,14 @@ export const AssistantTab: React.FC<AssistantTabProps> = ({ persona }) => {
     const prescriptionMedicine = lower.match(/(?:prescribed|prescription)\s+([a-z][a-z-]+)/)?.[1];
     const knownMedicines = getMedicinesFromCanonicalRecords().map(medicine => medicine.medicine.toLowerCase());
     if (prescriptionMedicine && !knownMedicines.includes(prescriptionMedicine)) return { text: prescriptionMedicine === 'insulin' ? "I couldn't find insulin or an insulin dosage in the available medical records." : `I couldn't find ${prescriptionMedicine} in the available prescription records.` };
+    const asksForDoctorNames = /\b(?:doctor|doctors)\b.*\b(?:name|names|list|who)\b|\b(?:name|names|list|who)\b.*\b(?:doctor|doctors)\b/.test(lower);
+    if (asksForDoctorNames) {
+      const doctorRecords = getPatientRecords().filter(record => /^Dr\.\s/i.test(record.doctor));
+      const doctors = [...new Map(doctorRecords.map(record => [record.doctor, record])).values()];
+      return doctors.length
+        ? { text: `The doctors named in your available medical records are:\n\n${doctors.map(record => `• ${record.doctor} — ${record.hospital}`).join('\n')}\n\nThese names come from your hospital-recorded documents.`, sources: toSources(doctorRecords), grounded: true }
+        : { text: "I couldn't find any doctor names in the available medical records." };
+    }
     if (/\bmri\b/.test(lower) && !searchMedicalRecords(query).length) { const date = query.match(/(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}/i)?.[0]; return { text: `I couldn't find${date ? ` a ${date}` : ''} MRI record in the available medical records.` }; }
     if (/heart attack/.test(lower) && !searchMedicalRecords(query).length) { const year = query.match(/\b\d{4}\b/)?.[0]; return { text: `I couldn't confirm a heart attack${year ? ` in ${year}` : ''} from the available medical records.` }; }
     if (kind === 'history') { const records = getPatientRecords(); return { text: `Your vault contains ${records.length} total records. Here is the complete timeline using all ${records.length} canonical records.`, timeline: records, sources: toSources(records), grounded: true }; }
