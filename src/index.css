@@ -210,10 +210,10 @@
 @media (max-width: 640px) { .assistant-hero { min-height: 200px; padding: 3.65rem 1.15rem .85rem; }.assistant-hero h1 { font-size: clamp(1.65rem, 8vw, 2.25rem); }.assistant-hero .nurse-scene { transform: scale(.72); } }
 
 /* The answer panel is the main workspace; the robot remains a compact visual cue. */
-.assistant-hero { min-height: 100px; padding-top: 2.5rem; padding-bottom: .55rem; }
+.assistant-hero { flex: 0 0 118px; min-height: 118px; padding-top: 2.5rem; padding-bottom: .55rem; }
 .assistant-hero h1 { font-size: clamp(1.15rem, 1.8vw, 1.7rem); margin: .15rem 0; }
 .assistant-hero p { display: none; }.assistant-status { margin-top: .35rem; }
 .assistant-hero .nurse-scene { width: 108px; height: 80px; flex-basis: 108px; transform: scale(.58) translate(-18px, 4px); }
-.assistant-chat { flex: 1 1 0%; min-height: 390px; padding: 1.35rem; }
+.assistant-chat { flex: 1 1 0%; min-height: 0; padding: 1.35rem; }
 .assistant-message { font-size: .9rem; line-height: 1.65; }
-@media (max-width: 640px) { .assistant-hero { min-height: 126px; padding-top: 2.85rem; }.assistant-hero h1 { font-size: 1.25rem; }.assistant-hero .nurse-scene { transform: scale(.5); right: -1.8rem; }.assistant-chat { min-height: 320px; padding: 1rem; }.assistant-message { font-size: .875rem; } }
+@media (max-width: 640px) { .assistant-hero { flex-basis: 126px; min-height: 126px; padding-top: 2.85rem; }.assistant-hero h1 { font-size: 1.25rem; }.assistant-hero .nurse-scene { transform: scale(.5); right: -1.8rem; }.assistant-chat { min-height: 0; padding: 1rem; }.assistant-message { font-size: .875rem; } }
