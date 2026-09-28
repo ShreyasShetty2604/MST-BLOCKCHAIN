@@ -89,7 +89,7 @@ export const RecordsTab: React.FC = () => {
             Medical Records Vault
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Anchored on Polygon testnet with zero unencrypted health data on-chain.
+            Blockchain verification • No unencrypted health data on-chain.
           </p>
         </div>
 

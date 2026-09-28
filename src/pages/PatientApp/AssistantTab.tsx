@@ -1,644 +1,98 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Send, Bot, Sparkles, FileText, Share2, BadgeCheck, ShieldCheck,
-  Search, Clock, CheckCircle2, ExternalLink, X
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bot, CheckCircle2, FileText, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { PatientPersona } from '../../mock/types';
-import {
-  DEMO_RECORDS, DEMO_DOCTORS, DEMO_CONSENTS, DEMO_PATIENT,
-  getRecordsSortedByDate, getMedicinesFromRecords, getActiveConsentsForDoctor,
-  getDoctorByName, searchRecords, MedProofRecord
-} from '../../mock/medproofData';
+import { CanonicalRecord, extractMedicalClaim, findRelevantRecordsForSymptoms, findSupportingRecordsForClaim, getBloodOrLabReports, getDoctorByName, getMedicinesFromCanonicalRecords, getPatientRecords, getPrescriptionRecords, getRecordById, getReportRecords, searchMedicalRecords, validateRecordGrounding } from '../../data/patientRecords';
 
-// ─── Types ─────────────────────────────────────────────────
-interface Source {
-  recordId: string;
-  title: string;
-  date: string;
-}
+type Intent = 'history' | 'latest' | 'record' | 'claim' | 'medicines' | 'compare' | 'share' | 'revoke' | 'verify' | 'access' | 'symptom' | 'unknown';
+type Source = Pick<CanonicalRecord, 'id' | 'title' | 'date' | 'doctor' | 'hospital'>;
+type Consent = { recordId: string; doctor: string; expiresAt: Date; grantedAt: Date; status: 'active' | 'revoked' };
+type Message = { id: string; sender: 'user' | 'assistant'; text: string; timestamp: string; sources?: Source[]; timeline?: CanonicalRecord[]; record?: CanonicalRecord; showRecordDetails?: boolean; symptomMatches?: ReturnType<typeof findRelevantRecordsForSymptoms>; symptomNoMatch?: boolean; medicines?: ReturnType<typeof getMedicinesFromCanonicalRecords>; comparison?: { test: string; oldValue: string; newValue: string; change: string }[]; share?: { record: CanonicalRecord; doctor: string; duration: string }; verification?: CanonicalRecord; access?: Consent[]; grounded?: boolean; claimNotDocumented?: boolean };
+interface AssistantTabProps { persona: PatientPersona; onOpenEmergencyCard: () => void; }
 
-interface Verification {
-  doctorVerified?: boolean;
-  documentHashVerified?: boolean;
-  timestampVerified?: boolean;
-  documentUnmodified?: boolean;
-}
-
-interface ShareCard {
-  document: string;
-  recipient: string;
-  recipientVerified: boolean;
-  duration: string;
-}
-
-interface ComparisonRow {
-  test: string;
-  january: string;
-  september: string;
-  change: string;
-}
-
-interface AccessEntry {
-  recordTitle: string;
-  status: string;
-  expiresAt: string;
-}
-
-interface Message {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  timestamp: string;
-  sources?: Source[];
-  verification?: Verification;
-  shareCard?: ShareCard;
-  comparisonTable?: ComparisonRow[];
-  accessList?: AccessEntry[];
-  timelineEntries?: { date: string; title: string; doctor: string; summary: string }[];
-  medicineList?: { medicine: string; dosage: string; date: string; doctor: string; source: string }[];
-  showQuickActions?: boolean;
-}
-
-interface AssistantTabProps {
-  persona: PatientPersona;
-  onOpenEmergencyCard: () => void;
-}
-
-// ─── Intent Detection ──────────────────────────────────────
-type Intent = 'history' | 'medicines' | 'compare' | 'share' | 'verify' | 'access' | 'symptom' | 'unknown';
-
-function detectIntent(query: string): Intent {
+const formatDate = (date: string) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
+const toSources = (records: CanonicalRecord[]): Source[] => records.map(({ id, title, date, doctor, hospital }) => ({ id, title, date, doctor, hospital }));
+const doctorFrom = (q: string) => q.toLowerCase().includes('patel') ? 'Dr. Patel' : 'Dr. Sharma';
+const recordFrom = (q: string) => {
+  const matches = searchMedicalRecords(q);
+  if (matches.length) return matches[0];
+  const lower = q.toLowerCase();
+  if (/january|february|march|april|may|june|july|august|september|october|november|december/.test(lower)) return undefined;
+  const reports = getReportRecords();
+  return lower.includes('blood') || lower.includes('latest') ? reports.find(r => r.title.includes('Glucose')) || reports[0] : getPatientRecords().find(r => lower.includes(r.id.toLowerCase())) || getPatientRecords()[0];
+};
+const latestRecord = () => [...getPatientRecords()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id.localeCompare(a.id))[0];
+function detect(query: string): Intent {
   const q = query.toLowerCase();
-  if (q.includes('summarize') || q.includes('history') || q.includes('timeline') || q.includes('medical history'))
-    return 'history';
-  if (q.includes('medicine') || q.includes('prescription') || q.includes('drug') || q.includes('medication') || q.includes('prescribed'))
-    return 'medicines';
-  if (q.includes('compare') || q.includes('comparison') || q.includes('january') || q.includes('blood report'))
-    return 'compare';
-  if (q.includes('share') || q.includes('send') || q.includes('grant access'))
-    return 'share';
-  if (q.includes('verify') || q.includes('verification') || q.includes('authentic') || q.includes('hash') || q.includes('document check'))
-    return 'verify';
-  if (q.includes('access') || q.includes('who can') || q.includes('permission') || q.includes('consent') || q.includes('check my access'))
-    return 'access';
-  if (q.includes('headache') || q.includes('fever') || q.includes('pain') || q.includes('symptom') || q.includes('cough') ||
-      q.includes('nausea') || q.includes('dizzy') || q.includes('fatigue') || q.includes('numbness') || q.includes('relevant'))
-    return 'symptom';
+  const hasLatestCue = /\b(latest|newest|most recent|recent|last|what happened most recently)\b/.test(q);
+  const hasRecordCue = /\b(record|records|medical history|medical record|history|entry|thing)\b/.test(q);
+  if (q.includes('revoke')) return 'revoke';
+  if (/(chest pain|difficulty breathing|severe bleeding|unconscious)/.test(q)) return 'symptom';
+  if (/(headache|fever|rash|cough|nausea|dizz|fatigue)/.test(q)) return 'symptom';
+  if (extractMedicalClaim(query) && /\b(i had|i was|was i|did i|was my|was there|i have)\b/.test(q)) return 'claim';
+  if (q.includes('share') || q.includes('grant access') || q.includes('give ') || q.includes('let my doctor')) return 'share';
+  if (hasLatestCue && hasRecordCue && !/(medicine|medication|prescription|report|document|access)/.test(q)) return 'latest';
+  if (searchMedicalRecords(query).length && !/(medicine|medication|prescription|compare|share|grant access|verify|authentic|access|permission|consent)/.test(q)) return 'record';
+  if (q.includes('summar') || q.includes('give me my history') || q.includes('tell me about') || q.includes('medical history') || q.includes('medical records')) return 'history';
+  if (q.includes('medicine') || q.includes('prescription') || q.includes('medication') || q.includes('what was i prescribed')) return 'medicines';
+  if (q.includes('compare') || q.includes('what changed') || q.includes('differences between')) return 'compare';
+  if (q.includes('verify') || q.includes('authentic') || q.includes('integrity') || q.includes('trust this document') || q.includes('check this medical record')) return 'verify';
+  if (q.includes('access') || q.includes('permission') || q.includes('consent') || q.includes('what can dr.') || q.includes('who can')) return 'access';
+  if (/(headache|fever|pain|symptom|cough|nausea|dizz|fatigue)/.test(q)) return 'symptom';
   return 'unknown';
 }
 
-// ─── Response Builders ─────────────────────────────────────
-function buildHistoryResponse(): Partial<Message> {
-  const records = getRecordsSortedByDate();
-  return {
-    text: `Here is your medical history timeline, Rajesh. You have ${records.length} records on file spanning from ${records[records.length - 1].date} to ${records[0].date}.`,
-    timelineEntries: records.map(r => ({
-      date: r.date,
-      title: r.title,
-      doctor: r.doctor,
-      summary: r.summary,
-    })),
-    sources: records.map(r => ({ recordId: r.id, title: r.title, date: r.date })),
-    verification: { doctorVerified: true, documentHashVerified: true },
+export const AssistantTab: React.FC<AssistantTabProps> = ({ persona }) => {
+  const [consents, setConsents] = useState<Consent[]>([]);
+  const [messages, setMessages] = useState<Message[]>([{ id: 'welcome', sender: 'assistant', timestamp: 'Just now', text: `Hi ${persona.name.split(' ')[0]} 👋 I’m your MediVault AI Assistant. I use only the records in your vault.\n\nAsk about your records, compare reports, verify documents, or control who can access them.` }]);
+  const [input, setInput] = useState(''); const [typing, setTyping] = useState(false); const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, typing]);
+  const actions = [['Summarize My History', 'Summarize my medical history'], ['Find My Medicines', 'What medicines were prescribed recently?'], ['Compare My Reports', 'Compare my reports'], ['Share a Record', 'Share my latest blood report with Dr. Sharma for 24 hours'], ['Verify a Document', 'Verify my latest blood report'], ['Check My Access', 'What records can Dr. Sharma access?']];
+
+  const answer = (query: string): Omit<Message, 'id' | 'sender' | 'timestamp'> => {
+    const kind = detect(query);
+    const lower = query.toLowerCase();
+    if (kind === 'claim') { const claim = extractMedicalClaim(query)!; const records = findSupportingRecordsForClaim(query); if (!records.length) return { text: `CLAIM\n${claim.entity}${claim.year ? ` in ${claim.year}` : ''}\n\nRESULT\n⚠ Not documented in available records\n\nDETAIL\nI couldn't find a medical record documenting ${claim.entity}${claim.year ? ` in ${claim.year}` : ''} in the available patient records.\n\nSOURCES\nNo matching record found`, claimNotDocumented: true }; const record = records[0]; return { text: `Yes — I found a record directly supporting this claim.${record.status === 'self-declared' ? ' This is a self-declared patient record, not a hospital-verified diagnosis.' : ''}\n\nRecord: ${record.id}\n${record.title}\n${formatDate(record.date)}\n${record.doctor}`, record, sources: toSources(records), grounded: true }; }
+    const prescriptionMedicine = lower.match(/(?:prescribed|prescription)\s+([a-z][a-z-]+)/)?.[1];
+    const knownMedicines = getMedicinesFromCanonicalRecords().map(medicine => medicine.medicine.toLowerCase());
+    if (prescriptionMedicine && !knownMedicines.includes(prescriptionMedicine)) return { text: prescriptionMedicine === 'insulin' ? "I couldn't find insulin or an insulin dosage in the available medical records." : `I couldn't find ${prescriptionMedicine} in the available prescription records.` };
+    if (/\bmri\b/.test(lower) && !searchMedicalRecords(query).length) { const date = query.match(/(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}/i)?.[0]; return { text: `I couldn't find${date ? ` a ${date}` : ''} MRI record in the available medical records.` }; }
+    if (/heart attack/.test(lower) && !searchMedicalRecords(query).length) { const year = query.match(/\b\d{4}\b/)?.[0]; return { text: `I couldn't confirm a heart attack${year ? ` in ${year}` : ''} from the available medical records.` }; }
+    if (kind === 'history') { const records = getPatientRecords(); return { text: `Your vault contains ${records.length} total records. Here is the complete timeline using all ${records.length} canonical records.`, timeline: records, sources: toSources(records), grounded: true }; }
+    if (kind === 'latest') { const record = latestRecord(); return record ? { text: `Your most recent medical record is:\n\n${record.title}\n${formatDate(record.date)}\n${record.doctor}\n${record.hospital}\n\n${record.summary}\n\nRecord ID: ${record.id}`, sources: toSources([record]), grounded: true } : { text: "I couldn't find that information in the available medical records." }; }
+    if (kind === 'record') { const record = searchMedicalRecords(query)[0]; if (!record) return { text: "I couldn't find that information in the available medical records." }; const asksIssuer = /\b(who issued|who wrote|issuer)\b/.test(lower); const asksDate = /\b(when|what date|date)\b/.test(lower); const asksDetails = /\b(value|values|result|results|everything|full details|what does.*say)\b/.test(lower); const metadata = `Record ID: ${record.id}`; if (asksIssuer) return { text: `Your ${record.title} was issued by ${record.doctor} at ${record.hospital} on ${formatDate(record.date)}.\n\n${metadata}`, sources: toSources([record]), grounded: true }; if (asksDate) return { text: `Your ${record.title} was recorded on ${formatDate(record.date)}.\n\n${metadata}`, sources: toSources([record]), grounded: true }; return { text: `${record.title} was recorded on ${formatDate(record.date)} at ${record.hospital} and is associated with ${record.doctor}.${record.status === 'self-declared' ? '\n\nThis is a self-declared patient record, not a hospital-verified diagnosis.' : ''}\n\nAccording to the record: ${record.summary}\n\n${metadata}`, record, showRecordDetails: asksDetails, sources: toSources([record]), grounded: true }; }
+    if (kind === 'medicines') { const prescriptions = getPrescriptionRecords(); const isLatestRequest = /(latest|recent|what was i prescribed)/.test(lower); const records = isLatestRequest ? prescriptions.slice(0, 1) : prescriptions; const medicines = getMedicinesFromCanonicalRecords().filter(medicine => records.some(record => record.id === medicine.recordId)); return medicines.length ? { text: `These medicines are listed in ${records.length} available prescription record${records.length === 1 ? '' : 's'}. This is a record summary, not a new prescription.`, medicines, sources: toSources(records), grounded: true } : { text: "I couldn't find that information in the available medical records." }; }
+    if (kind === 'compare') { const namedDates = [...lower.matchAll(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/g)]; const requestedDatesExist = namedDates.every(([, month, year]) => getPatientRecords().some(record => new Date(`${record.date}T00:00:00`).toLocaleString('en-US', { month: 'long' }).toLowerCase() === month && record.date.startsWith(year))); if (namedDates.length && !requestedDatesExist) return { text: "I couldn't find the requested report(s) in the available medical records." }; const bloodTerms = /(blood|lab|glucose|hba1c|a1c|lipid)/.test(lower); const reports = (bloodTerms ? getBloodOrLabReports() : getReportRecords()).slice(0, 2); const rows = reports.length > 1 ? Object.keys(reports[0].details).filter(key => reports[1].details[key] !== undefined).map(test => ({ test, oldValue: reports[1].details[test], newValue: reports[0].details[test], change: reports[1].details[test] === reports[0].details[test] ? 'No recorded change' : 'Recorded values differ' })) : []; return rows.length ? { text: 'This comparison reports only recorded differences; it does not provide a clinical interpretation.', comparison: rows, sources: toSources(reports), grounded: true } : { text: reports.length === 2 ? 'I found the two most recent blood/lab reports, but they contain different test panels, so there are no shared test fields for a direct comparison.' : "I couldn't find two available reports with matching test fields to compare. I can only compare values that exist in your medical records.", sources: toSources(reports), grounded: true }; }
+    if (kind === 'share') { const record = recordFrom(query); const doctor = doctorFrom(query); return record && getDoctorByName(doctor)?.verified ? { text: 'Review this patient-controlled sharing request before confirming.', share: { record, doctor, duration: query.match(/(\d+)\s*(hour|hours|day|days)/i)?.[0] || '24 hours' }, sources: toSources([record]), grounded: true } : { text: "I couldn't find that report in the available medical records." }; }
+    if (kind === 'revoke') { const doctor = doctorFrom(query); const active = consents.filter(c => c.doctor === doctor && c.status === 'active'); if (!active.length) return { text: `${doctor} has no active record access to revoke.` }; setConsents(prev => prev.map(c => c.doctor === doctor && c.status === 'active' ? { ...c, status: 'revoked' } : c)); return { text: `Access for ${doctor} has been revoked. The consent audit state is now REVOKED.`, access: active.map(c => ({ ...c, status: 'revoked' })), sources: toSources(active.map(c => getRecordById(c.recordId)!).filter(Boolean)), grounded: true }; }
+    if (kind === 'verify') { const record = recordFrom(query); return record ? { text: 'This verifies recorded document provenance and integrity metadata. It does not establish that the medical information itself is clinically true.', verification: record, sources: toSources([record]), grounded: true } : { text: "I couldn't find that information in the available medical records." }; }
+    if (kind === 'access') { const doctor = doctorFrom(query); const access = consents.filter(c => c.doctor === doctor); return access.length ? { text: `${doctor}'s consent status is shown below.`, access, sources: toSources(access.map(c => getRecordById(c.recordId)!).filter(Boolean)), grounded: true } : { text: `${doctor} currently has no active access to your records.` }; }
+    if (kind === 'symptom') { const matches = findRelevantRecordsForSymptoms(query); if (/(chest pain|difficulty breathing|severe bleeding|unconscious)/.test(lower)) return { text: 'Current symptoms such as chest pain cannot be safely treated through this medical-record assistant. Please seek urgent professional medical evaluation or local emergency services now.', symptomMatches: matches, sources: toSources(matches.map(match => match.record)), grounded: matches.length > 0, symptomNoMatch: !matches.length }; if (matches.length) return { text: 'I found the following documented history that may be relevant. These records cannot determine the cause of your current symptoms. This assistant is not a diagnostic service.', symptomMatches: matches, sources: toSources(matches.map(match => match.record)), grounded: true }; const symptoms = ['headache', 'fever', 'rash', 'chest pain', 'cough', 'nausea', 'dizziness'].filter(symptom => lower.includes(symptom)); return { text: `I couldn't find a patient record specifically related to ${symptoms.join(' or ') || 'those symptoms'} in the available medical records.\n\nI can only summarize what is documented in your records; I cannot diagnose the current symptoms.`, symptomNoMatch: true }; }
+    return { text: lower.includes('weather') ? 'I’m designed to help with your available medical records, not weather information.' : "I couldn't find a matching request in the available medical records." };
   };
-}
-
-function buildMedicineResponse(): Partial<Message> {
-  const meds = getMedicinesFromRecords();
-  return {
-    text: 'Here are all medicines found in your prescription records:',
-    medicineList: meds.map(m => ({
-      medicine: m.medicine,
-      dosage: m.dosage,
-      date: m.date,
-      doctor: m.doctor,
-      source: m.recordTitle,
-    })),
-    sources: [...new Map(meds.map(m => [m.recordId, { recordId: m.recordId, title: m.recordTitle, date: m.date }])).values()],
-    verification: { doctorVerified: true, documentHashVerified: true },
-  };
-}
-
-function buildCompareResponse(): Partial<Message> {
-  const jan = DEMO_RECORDS.find(r => r.id === 'mpr-001')!;
-  const sep = DEMO_RECORDS.find(r => r.id === 'mpr-002')!;
-
-  const tests = ['Hemoglobin', 'WBC Count', 'Fasting Blood Sugar', 'HbA1c', 'Total Cholesterol', 'Triglycerides', 'Creatinine'];
-  const table: ComparisonRow[] = tests.map(test => {
-    const janVal = jan.details[test] || '—';
-    const sepVal = sep.details[test] || '—';
-    const janNum = parseFloat(janVal.replace(/[^0-9.]/g, ''));
-    const sepNum = parseFloat(sepVal.replace(/[^0-9.]/g, ''));
-    let change = '—';
-    if (!isNaN(janNum) && !isNaN(sepNum)) {
-      const diff = sepNum - janNum;
-      change = diff > 0 ? `↑ +${diff.toFixed(1)}` : diff < 0 ? `↓ ${diff.toFixed(1)}` : 'No change';
-    }
-    return { test, january: janVal, september: sepVal, change };
-  });
-
-  return {
-    text: 'Here is a side-by-side comparison of your January 2026 and September 2026 blood reports. Changes are shown in the last column.',
-    comparisonTable: table,
-    sources: [
-      { recordId: jan.id, title: jan.title, date: jan.date },
-      { recordId: sep.id, title: sep.title, date: sep.date },
-    ],
-    verification: { doctorVerified: true, documentHashVerified: true },
-  };
-}
-
-function buildShareResponse(query: string): Partial<Message> {
-  // Parse doctor name and record from query
-  let doctorName = 'Dr. Sharma';
-  let recordTitle = 'September Blood Report';
-  let duration = '24 hours';
-
-  if (query.toLowerCase().includes('patel')) doctorName = 'Dr. Patel';
-  if (query.toLowerCase().includes('january')) recordTitle = 'January Blood Report';
-  if (query.toLowerCase().includes('prescription')) recordTitle = 'Prescription - August 2026';
-  if (query.toLowerCase().includes('48')) duration = '48 hours';
-
-  const doctor = getDoctorByName(doctorName);
-
-  return {
-    text: `I've prepared a sharing request for your record. Please review and confirm:`,
-    shareCard: {
-      document: recordTitle,
-      recipient: doctorName,
-      recipientVerified: doctor?.verified ?? false,
-      duration,
-    },
-    sources: [{ recordId: 'mpr-002', title: recordTitle, date: '2026-09-10' }],
-  };
-}
-
-function buildVerifyResponse(query: string): Partial<Message> {
-  let doctorName = 'Dr. Sharma';
-  if (query.toLowerCase().includes('patel')) doctorName = 'Dr. Patel';
-  const doctor = getDoctorByName(doctorName);
-
-  return {
-    text: `Verification results for ${doctorName} and associated document:`,
-    verification: {
-      doctorVerified: doctor?.verified ?? false,
-      documentHashVerified: true,
-      timestampVerified: true,
-      documentUnmodified: true,
-    },
-    sources: doctor
-      ? [{ recordId: 'doc-verify', title: `${doctorName} — ${doctor.specialty} (${doctor.registrationNumber})`, date: 'Verified' }]
-      : [],
-  };
-}
-
-function buildAccessResponse(query: string): Partial<Message> {
-  let doctorName = 'Dr. Sharma';
-  if (query.toLowerCase().includes('patel')) doctorName = 'Dr. Patel';
-  const doctor = getDoctorByName(doctorName);
-
-  if (!doctor) {
-    return { text: `Doctor "${doctorName}" was not found in the system.` };
-  }
-
-  const consents = getActiveConsentsForDoctor(doctor.id);
-  if (consents.length === 0) {
-    return {
-      text: `${doctorName} currently has no active access to any of your records. All previous access grants have expired or been revoked.`,
-      sources: [],
-    };
-  }
-
-  const accessEntries: AccessEntry[] = consents.map(c => {
-    const record = DEMO_RECORDS.find(r => r.id === c.recordId);
-    return {
-      recordTitle: record?.title || c.recordId,
-      status: c.status,
-      expiresAt: new Date(c.expiresAt).toLocaleString(),
-    };
-  });
-
-  return {
-    text: `${doctorName} currently has access to the following records:`,
-    accessList: accessEntries,
-    sources: consents.map(c => {
-      const record = DEMO_RECORDS.find(r => r.id === c.recordId);
-      return { recordId: c.recordId, title: record?.title || c.recordId, date: record?.date || '' };
-    }),
-  };
-}
-
-function buildSymptomResponse(query: string): Partial<Message> {
-  const relevant = searchRecords(query);
-  const hasEmergencyKeywords = /chest pain|breathless|unconscious|severe bleeding|heart attack/i.test(query);
-
-  if (hasEmergencyKeywords) {
-    return {
-      text: '⚠️ You\'ve mentioned symptoms that could indicate a medical emergency. Please contact emergency services (112) or visit the nearest emergency department immediately.\n\nI found the following relevant records in your history:',
-      sources: relevant.slice(0, 3).map(r => ({ recordId: r.id, title: r.title, date: r.date })),
-    };
-  }
-
-  let text = '';
-  if (relevant.length > 0) {
-    text = `I searched your medical records for information relevant to your symptoms. Here's what I found:\n\n`;
-    relevant.slice(0, 3).forEach(r => {
-      text += `• **${r.title}** (${r.date}) — ${r.summary}\n`;
-    });
-    text += `\n⚕️ **Important**: I cannot diagnose or prescribe treatment. This is a summary of your existing records only. Please discuss your symptoms with a qualified clinician for proper medical advice.`;
-  } else {
-    text = `I did not find any records in your medical history directly related to your described symptoms.\n\n⚕️ **Important**: I cannot diagnose or prescribe treatment. Please consult a qualified clinician to discuss your symptoms.`;
-  }
-
-  return {
-    text,
-    sources: relevant.slice(0, 3).map(r => ({ recordId: r.id, title: r.title, date: r.date })),
-  };
-}
-
-// ─── Component ─────────────────────────────────────────────
-export const AssistantTab: React.FC<AssistantTabProps> = ({ persona, onOpenEmergencyCard }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'msg-welcome',
-      sender: 'assistant',
-      text: `Hi Rajesh 👋 I'm your MedProof AI Assistant.\n\nI can help you understand your existing medical records, find medicines mentioned in them, compare reports, verify documents and doctors, and manage record-sharing permissions.\n\nYour records remain patient-controlled.`,
-      timestamp: 'Just now',
-      showQuickActions: true,
-    },
-  ]);
-
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [shareConfirmed, setShareConfirmed] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
-  const quickActions = [
-    { label: 'Summarize My History', query: 'Summarize my medical history' },
-    { label: 'Find My Medicines', query: 'What medicines were prescribed recently?' },
-    { label: 'Compare My Reports', query: 'Compare my January and September blood reports' },
-    { label: 'Share a Record', query: 'Share my September blood report with Dr. Sharma for 24 hours' },
-    { label: 'Verify a Document', query: 'Verify Dr. Sharma and document authenticity' },
-    { label: 'Check My Access', query: 'What records can Dr. Sharma access?' },
-  ];
-
-  const handleSendMessage = (textToSend?: string) => {
-    const query = textToSend || input;
-    if (!query.trim()) return;
-
-    const userMsg: Message = {
-      id: `msg-${Date.now()}`,
-      sender: 'user',
-      text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    if (!textToSend) setInput('');
-    setIsTyping(true);
-
-    setTimeout(() => {
-      const intent = detectIntent(query);
-      let response: Partial<Message> = {};
-
-      switch (intent) {
-        case 'history':
-          response = buildHistoryResponse();
-          break;
-        case 'medicines':
-          response = buildMedicineResponse();
-          break;
-        case 'compare':
-          response = buildCompareResponse();
-          break;
-        case 'share':
-          response = buildShareResponse(query);
-          break;
-        case 'verify':
-          response = buildVerifyResponse(query);
-          break;
-        case 'access':
-          response = buildAccessResponse(query);
-          break;
-        case 'symptom':
-          response = buildSymptomResponse(query);
-          break;
-        default:
-          response = {
-            text: `I can help you with:\n• Summarizing your medical history\n• Finding prescribed medicines\n• Comparing reports\n• Sharing records with doctors\n• Verifying documents and doctors\n• Checking who has access to your records\n\nTry one of the quick actions below, or ask about any of these topics.`,
-            showQuickActions: true,
-          };
-      }
-
-      const aiMsg: Message = {
-        id: `msg-${Date.now() + 1}`,
-        sender: 'assistant',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: response.text || '',
-        ...response,
-      };
-
-      setMessages(prev => [...prev, aiMsg]);
-      setIsTyping(false);
-    }, 800);
-  };
-
-  const handleConfirmShare = (shareCard: ShareCard) => {
-    setShareConfirmed(shareCard.document);
-    const confirmMsg: Message = {
-      id: `msg-${Date.now()}`,
-      sender: 'assistant',
-      text: `✅ **Record shared successfully!**\n\n"${shareCard.document}" has been shared with ${shareCard.recipient} for ${shareCard.duration}.\n\nTransaction logged. The recipient will be notified. You can revoke access at any time from the Consent & Sharing tab.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      verification: { documentHashVerified: true, timestampVerified: true },
-      sources: [{ recordId: 'share-tx', title: `Share Transaction — ${shareCard.document}`, date: new Date().toISOString().split('T')[0] }],
-    };
-    setMessages(prev => [...prev, confirmMsg]);
-  };
-
-  return (
-    <div className="space-y-4 animate-fade-in flex flex-col h-[calc(100vh-10rem)]">
-      {/* Disclaimer Bar */}
-      <div className="w-full p-2.5 bg-amber-50 dark:bg-amber-950/70 border-b border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-medium flex items-center justify-center gap-2 text-center rounded-xl">
-        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-        <span>Medical-record assistant only. Not a diagnosis or treatment service.</span>
-      </div>
-
-      {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Bot className="w-6 h-6 text-teal-600" />
-            <span>MedProof AI Assistant</span>
-          </h1>
-          <p className="text-xs text-slate-500">
-            Ask about your records, compare reports, verify documents, or control who can access them.
-          </p>
-        </div>
-      </div>
-
-      {/* Chat History */}
-      <div className="flex-1 overflow-y-auto space-y-4 p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-inner">
-        {messages.map(msg => (
-          <div key={msg.id} className={`flex flex-col space-y-2 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-              <span>{msg.sender === 'user' ? persona.name : 'MedProof AI'}</span>
-              <span>•</span>
-              <span>{msg.timestamp}</span>
-            </div>
-
-            {/* Bubble */}
-            <div className={`p-4 rounded-2xl max-w-2xl text-xs space-y-3 ${
-              msg.sender === 'user'
-                ? 'bg-teal-700 text-white shadow-md'
-                : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-card'
-            }`}>
-              {/* Main text */}
-              <div className="whitespace-pre-wrap">{msg.text}</div>
-
-              {/* Timeline entries for history summary */}
-              {msg.timelineEntries && (
-                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-teal-800 dark:text-teal-300 text-[11px] block">📋 Medical Timeline</span>
-                  {msg.timelineEntries.map((entry, i) => (
-                    <div key={i} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-[10px] font-bold">{entry.date}</span>
-                        <span className="font-bold text-slate-900 dark:text-white text-[11px]">{entry.title}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">{entry.doctor} — {entry.summary}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Medicine list */}
-              {msg.medicineList && (
-                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-indigo-800 dark:text-indigo-300 text-[11px] block">💊 Prescribed Medicines</span>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700">
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Medicine</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Dosage</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Date</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Doctor</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {msg.medicineList.map((med, i) => (
-                          <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
-                            <td className="py-1.5 px-2 font-semibold text-slate-900 dark:text-white">{med.medicine}</td>
-                            <td className="py-1.5 px-2 text-slate-600 dark:text-slate-400">{med.dosage}</td>
-                            <td className="py-1.5 px-2 text-slate-500">{med.date}</td>
-                            <td className="py-1.5 px-2 text-slate-500">{med.doctor}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Comparison table */}
-              {msg.comparisonTable && (
-                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-indigo-800 dark:text-indigo-300 text-[11px] block">📊 Report Comparison</span>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-700">
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Test</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">January</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">September</th>
-                          <th className="text-left py-1.5 px-2 font-bold text-slate-700 dark:text-slate-300">Change</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {msg.comparisonTable.map((row, i) => (
-                          <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
-                            <td className="py-1.5 px-2 font-semibold text-slate-900 dark:text-white">{row.test}</td>
-                            <td className="py-1.5 px-2 text-slate-600 dark:text-slate-400">{row.january}</td>
-                            <td className="py-1.5 px-2 text-slate-600 dark:text-slate-400">{row.september}</td>
-                            <td className={`py-1.5 px-2 font-bold ${
-                              row.change.includes('↓') ? 'text-emerald-600' : row.change.includes('↑') ? 'text-amber-600' : 'text-slate-400'
-                            }`}>{row.change}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Share card */}
-              {msg.shareCard && (
-                <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <div className="p-4 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl border border-indigo-200 dark:border-indigo-900 space-y-2">
-                    <span className="font-bold text-indigo-900 dark:text-indigo-200 text-[11px] block">📤 Share Record Confirmation</span>
-                    <div className="space-y-1.5 text-[11px]">
-                      <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Document:</span><span className="font-semibold text-slate-900 dark:text-white">{msg.shareCard.document}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Recipient:</span><span className="font-semibold text-slate-900 dark:text-white">{msg.shareCard.recipient} {msg.shareCard.recipientVerified && <CheckCircle2 className="w-3.5 h-3.5 inline text-emerald-500" />} Verified</span></div>
-                      <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Duration:</span><span className="font-semibold text-slate-900 dark:text-white">{msg.shareCard.duration}</span></div>
-                    </div>
-                    {shareConfirmed !== msg.shareCard.document ? (
-                      <button
-                        onClick={() => handleConfirmShare(msg.shareCard!)}
-                        className="w-full mt-2 px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition-all"
-                      >
-                        Confirm Share
-                      </button>
-                    ) : (
-                      <div className="mt-2 px-4 py-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-xs text-center">
-                        ✅ Shared Successfully
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Access list */}
-              {msg.accessList && (
-                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-teal-800 dark:text-teal-300 text-[11px] block">🔐 Active Access Permissions</span>
-                  {msg.accessList.map((entry, i) => (
-                    <div key={i} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-[11px]">
-                      <div>
-                        <span className="font-bold text-slate-900 dark:text-white block">{entry.recordTitle}</span>
-                        <span className="text-slate-500">Expires: {entry.expiresAt}</span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        entry.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
-                      }`}>{entry.status}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Sources section */}
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] block flex items-center gap-1">
-                    <FileText className="w-3.5 h-3.5" /> SOURCES
-                  </span>
-                  {msg.sources.map((src, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[11px] text-teal-700 dark:text-teal-400">
-                      <span>📄 {src.title}</span>
-                      {src.date && src.date !== 'Verified' && <span className="text-slate-400">({src.date})</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Verification section */}
-              {msg.verification && (
-                <div className="space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] block flex items-center gap-1">
-                    <BadgeCheck className="w-3.5 h-3.5" /> VERIFICATION
-                  </span>
-                  <div className="space-y-0.5 text-[11px]">
-                    {msg.verification.doctorVerified !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className={`w-3.5 h-3.5 ${msg.verification.doctorVerified ? 'text-emerald-500' : 'text-rose-500'}`} />
-                        <span>{msg.verification.doctorVerified ? '✓ Doctor verified' : '✗ Doctor not verified'}</span>
-                      </div>
-                    )}
-                    {msg.verification.documentHashVerified !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className={`w-3.5 h-3.5 ${msg.verification.documentHashVerified ? 'text-emerald-500' : 'text-rose-500'}`} />
-                        <span>{msg.verification.documentHashVerified ? '✓ Document hash verified' : '✗ Document hash mismatch'}</span>
-                      </div>
-                    )}
-                    {msg.verification.timestampVerified !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>✓ Timestamp verified</span>
-                      </div>
-                    )}
-                    {msg.verification.documentUnmodified !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>✓ Document unmodified</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Quick actions after bot messages */}
-              {msg.showQuickActions && msg.sender === 'assistant' && (
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {quickActions.map((action, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleSendMessage(action.query)}
-                        className="px-3 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 text-[11px] font-semibold border border-teal-200 dark:border-teal-900 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors text-center"
-                      >
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {isTyping && (
-          <div className="flex items-center gap-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-400 w-56">
-            <Sparkles className="w-4 h-4 animate-spin text-teal-600" />
-            <span>Searching your records...</span>
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-          Quick Actions:
-        </span>
-        {quickActions.map((action, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSendMessage(action.query)}
-            className="px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 text-[11px] font-semibold whitespace-nowrap hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-900 transition-colors"
-          >
-            {action.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Input Box */}
-      <div className="space-y-2 shrink-0">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Ask about your records, medicines, reports, sharing, or verification..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-            className="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none shadow-sm"
-          />
-          <button
-            onClick={() => handleSendMessage()}
-            className="p-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold shadow-md transition-all shrink-0"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between text-[10px] text-slate-400 px-2 font-mono">
-          <span>Medical-record assistant only • Not a diagnosis service</span>
-          <span className="text-teal-600 font-semibold">Patient-controlled records</span>
-        </div>
-      </div>
+  const send = (value = input) => { if (!value.trim()) return; setMessages(prev => [...prev, { id: `u-${Date.now()}`, sender: 'user', text: value, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]); setInput(''); setTyping(true); window.setTimeout(() => { const next = answer(value); const ids = next.sources?.map(s => s.id) || []; const validation = ids.length ? validateRecordGrounding(ids) : { grounded: false }; setMessages(prev => [...prev, { ...next, id: `a-${Date.now()}`, sender: 'assistant', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), grounded: next.grounded && validation.grounded }]); setTyping(false); }, 450); };
+  const confirm = (share: NonNullable<Message['share']>) => { const unit = share.duration.toLowerCase().includes('day') ? 24 : 1; const hours = Number(share.duration.match(/\d+/)?.[0] || 24) * unit; const grantedAt = new Date(); const consent: Consent = { recordId: share.record.id, doctor: share.doctor, grantedAt, expiresAt: new Date(grantedAt.getTime() + hours * 3600000), status: 'active' }; setConsents(prev => [...prev, consent]); setMessages(prev => [...prev, { id: `confirmed-${Date.now()}`, sender: 'assistant', timestamp: 'Just now', text: `✓ Consent created for ${share.doctor}. Access to ${share.record.id} expires ${consent.expiresAt.toLocaleString()}. Blockchain audit event recorded for this demo.`, access: [consent], sources: toSources([share.record]), grounded: true }]); };
+  return <div className="space-y-4 animate-fade-in flex flex-col h-[calc(100vh-10rem)]">
+    <div className="p-2.5 bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-medium flex justify-center gap-2 text-center rounded-xl"><ShieldCheck className="w-4 h-4 shrink-0" />Medical-record assistant only. Not a diagnosis or treatment service.</div>
+    <div><h1 className="text-xl font-bold text-slate-900 dark:text-white flex gap-2"><Bot className="w-6 h-6 text-teal-600" />MediVault AI Assistant</h1><p className="text-xs text-slate-500">Ask about your records, compare reports, verify documents, or control who can access them.</p></div>
+    <div className="flex-1 overflow-y-auto space-y-4 p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-inner">
+      {messages.map(m => <div key={m.id} className={`flex flex-col gap-2 ${m.sender === 'user' ? 'items-end' : 'items-start'}`}><span className="text-[10px] text-slate-400 font-mono">{m.sender === 'user' ? persona.name : 'MediVault AI'} • {m.timestamp}</span><div className={`p-4 rounded-2xl max-w-2xl text-xs space-y-3 ${m.sender === 'user' ? 'bg-teal-700 text-white' : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-card'}`}>
+        <div className="whitespace-pre-wrap">{m.text}</div>
+        {m.claimNotDocumented && <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg p-2 text-amber-800 dark:text-amber-300 font-semibold">⚠ CLAIM NOT DOCUMENTED<br/><span className="font-normal">No matching supporting record found.</span></div>}
+        {m.symptomMatches && <div className="space-y-2"><b className="text-teal-700 dark:text-teal-300">RELEVANT RECORDS</b>{m.symptomMatches.map(match => <div key={match.record.id} className="rounded-xl bg-slate-50 dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700"><b>{match.record.id} · {match.record.title}</b><div className="text-slate-500">{formatDate(match.record.date)} · {match.record.doctor}</div><div className="mt-1">{match.reason}{match.record.status === 'self-declared' ? ' This is self-declared, not hospital-verified.' : ''}</div></div>)}</div>}
+        {m.symptomNoMatch && <div className="border border-slate-300 bg-slate-50 dark:bg-slate-800 rounded-lg p-2 text-slate-600 dark:text-slate-300 font-semibold">SOURCES<br/><span className="font-normal">No matching record found.</span></div>}
+        {m.record && m.showRecordDetails && <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700"><b className="text-teal-700 dark:text-teal-300">Recorded details</b>{Object.entries(m.record.details).map(([label, value]) => <div key={label} className="mt-1 text-slate-600 dark:text-slate-300"><span className="font-semibold">{label}:</span> {value}</div>)}</div>}
+        {m.timeline?.map(r => <div key={r.id} className="rounded-xl bg-slate-50 dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700"><b className="text-teal-700 dark:text-teal-300">{r.id} · {formatDate(r.date)}</b><div className="font-semibold">{r.title}</div><div className="text-slate-500">{r.doctor} · {r.hospital}</div></div>)}
+        {m.medicines && <table className="w-full text-[11px]"><thead><tr className="text-left border-b"><th>Medicine</th><th>Date</th><th>Doctor</th><th>Record</th></tr></thead><tbody>{m.medicines.map(x => <tr key={x.medicine} className="border-b border-slate-100 dark:border-slate-800"><td className="py-1">{x.medicine}<br/><span className="text-slate-500">{x.dosage}</span></td><td>{formatDate(x.date)}</td><td>{x.doctor}</td><td>{x.recordId}</td></tr>)}</tbody></table>}
+        {m.comparison && <table className="w-full text-[11px]"><thead><tr className="text-left border-b"><th>Test</th><th>Old value</th><th>New value</th><th>Change</th></tr></thead><tbody>{m.comparison.map(x => <tr key={x.test} className="border-b border-slate-100 dark:border-slate-800"><td>{x.test}</td><td>{x.oldValue}</td><td>{x.newValue}</td><td>{x.change}</td></tr>)}</tbody></table>}
+        {m.share && <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 space-y-1"><b>Share confirmation</b><div>Document: {m.share.record.id} · {m.share.record.title}</div><div>Recipient: {m.share.doctor} ✓ Verified</div><div>Duration: {m.share.duration}</div><button onClick={() => confirm(m.share!)} className="w-full mt-2 py-2 rounded-lg bg-teal-700 text-white font-bold">Confirm Share</button></div>}
+        {m.verification && <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-1"><b>Verification</b><div>✓ Document hash match: {m.verification.documentHash}</div><div>✓ Timestamp recorded · block {m.verification.blockNumber}</div><div>✓ Integrity verified · source: {m.verification.hospital}</div></div>}
+        {m.access?.map(c => <div key={`${c.recordId}-${c.grantedAt}`} className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800"><b>{c.recordId}</b> · {c.status === 'active' ? '✓ ACTIVE' : '✗ REVOKED'}<br/><span className="text-slate-500">Granted: {c.grantedAt.toLocaleString()} · Expires: {c.expiresAt.toLocaleString()}</span></div>)}
+        {m.sources?.length ? <section className="border-t pt-2"><b className="flex gap-1 items-center"><FileText className="w-3.5 h-3.5" /> SOURCES</b>{m.sources.map(s => <div key={s.id} className="text-teal-700 dark:text-teal-300 mt-1">{s.id} · {s.title} · {formatDate(s.date)} · {s.doctor}</div>)}</section> : null}
+        {m.grounded && <div className="border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg p-2 text-emerald-800 dark:text-emerald-300 font-semibold"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />GROUNDED IN PATIENT RECORDS<br/><span className="font-normal">{m.sources?.length || 0} source record(s) used · {m.sources?.map(s => s.id).join(' · ')}</span></div>}
+      </div></div>)}
+      {typing && <div className="flex gap-2 text-xs text-slate-400"><Sparkles className="w-4 h-4 animate-spin text-teal-600" />Searching your records...</div>}<div ref={endRef} />
     </div>
-  );
+    <div className="flex gap-2 overflow-x-auto">{actions.map(([label, query]) => <button key={label} onClick={() => send(query)} className="px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 text-[11px] font-semibold whitespace-nowrap border border-teal-200 dark:border-teal-900">{label}</button>)}</div>
+    <div className="flex gap-2"><input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Ask about your records, medicines, reports, sharing, or verification..." className="flex-1 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none" /><button onClick={() => send()} className="p-3 rounded-2xl bg-teal-700 text-white"><Send className="w-4 h-4" /></button></div>
+  </div>;
 };
