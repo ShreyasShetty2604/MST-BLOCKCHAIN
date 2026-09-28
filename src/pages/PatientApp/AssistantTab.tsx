@@ -181,24 +181,7 @@ export const AssistantTab: React.FC<AssistantTabProps> = ({ persona, onOpenEmerg
         : { text: `I couldn't find any doctor names in ${persona.name}'s records.`, sources: [] };
     }
 
-<<<<<<< HEAD
-  return <div className="assistant-shell animate-fade-in flex flex-col h-[calc(100vh-10rem)]">
-    <div className="assistant-safety"><ShieldCheck className="w-4 h-4 shrink-0" />Medical-record assistant only. Not a diagnosis or treatment service.</div>
-    <header className="assistant-hero"><div className="assistant-showcase-nav"><b>MediVault<span>AI</span></b><div><span>Private Vault</span><span>Record Intelligence</span><span>Secure by design</span></div><i /></div><div className="assistant-hero-copy"><div className="assistant-eyebrow"><Sparkles className="w-3.5 h-3.5" /> Your private health companion</div><h1>Your health records,<br/><em>intelligently</em> in view.</h1><p>Clear answers from {persona.name.split(' ')[0]}’s vault only — thoughtfully organized and always in your control.</p><div className="assistant-status"><span className="assistant-status-dot" />{loadingRecords ? 'Securing vault context…' : `${records.length} record${records.length === 1 ? '' : 's'} in this vault`}</div></div><div className="nurse-scene" aria-label="Animated robotic nurse companion" role="img"><div className="nurse-orbit nurse-orbit-one" /><div className="nurse-orbit nurse-orbit-two" /><div className="nurse-figure"><div className="nurse-antenna" /><div className="nurse-head"><Bot /></div><div className="nurse-body"><HeartPulse /><span>AI</span></div></div><div className="nurse-caption">Here to help</div></div></header>
-    <div className="assistant-chat flex-1 overflow-y-auto space-y-4">
-      {loadingRecords && <div className="assistant-typing"><Loader2 className="w-4 h-4 animate-spin" />Loading this vault’s records…</div>}
-      {messages.map(message => <div key={message.id} className={`flex flex-col gap-2 ${message.sender === 'user' ? 'items-end' : 'items-start'}`}><span className="assistant-message-meta">{message.sender === 'user' ? persona.name : 'MediVault AI'} <span>•</span> {message.timestamp}</span><div className={`assistant-message p-4 max-w-4xl text-sm space-y-3 ${message.sender === 'user' ? 'assistant-message-user' : 'assistant-message-ai'}`}><ResponseText text={message.text} />
-        {message.record && <div className="assistant-record-card"><b>Recorded details</b>{Object.entries(message.record.payload.details).map(([label, value]) => <div className="assistant-record-detail" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>}
-        {message.timeline?.map(record => <article key={record.id} className="assistant-record-card"><div className="assistant-record-card-heading"><b>{formatDate(record.date)}</b><span>{record.id}</span></div><h3>{record.title}</h3><p>{record.payload.summary}</p><div className="assistant-record-card-meta">{record.doctor || 'Not recorded'} <span>•</span> {record.source}</div></article>)}
-        {message.medicines && <table className="assistant-data-table"><thead><tr><th>Medicine</th><th>Date</th><th>Doctor</th><th>Record</th></tr></thead><tbody>{message.medicines.map(item => <tr key={`${item.medicine}-${item.date}`}><td>{item.medicine}<br/><span>{item.dosage}</span></td><td>{formatDate(item.date)}</td><td>{item.doctor}</td><td>{item.source}</td></tr>)}</tbody></table>}
-        {message.comparison && <table className="assistant-data-table"><thead><tr><th>Test</th><th>Earlier</th><th>Later</th><th>Change</th></tr></thead><tbody>{message.comparison.map(item => <tr key={item.test}><td>{item.test}</td><td>{item.earlier}</td><td>{item.later}</td><td>{item.change}</td></tr>)}</tbody></table>}
-        {message.share && <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 space-y-1"><b>Share request ready</b><div>Document: {message.share.record.id} · {message.share.record.title}</div><div>Recipient: {message.share.recipient}</div><div>Duration: {message.share.durationHours} hours</div></div>}
-        {message.verification && <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-1"><b>Verification</b><div>Document hash: {message.verification.hash}</div><div>Source: {message.verification.source} · block {message.verification.blockNumber}</div></div>}
-        {message.sources?.length ? <section className="assistant-sources"><b><FileText className="w-3.5 h-3.5" />Sources from this vault</b>{message.sources.map(record => <div key={record.id}>{record.id} <span>•</span> {record.title} <span>•</span> {formatDate(record.date)} <span>•</span> {record.doctor || record.source}</div>)}</section> : null}
-        {message.grounded && <div className="border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg p-2 text-emerald-800 dark:text-emerald-300 font-semibold"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />GROUNDED IN THIS PATIENT’S RECORDS<br/><span className="font-normal">{message.sources?.length || 0} source record(s) used · {message.sources?.map(record => record.id).join(' · ')}</span></div>}
-      </div></div>)}
-      {typing && <div className="assistant-typing"><Sparkles className="w-4 h-4 animate-spin" />Checking this vault’s records…</div>}<div ref={endRef} />
-=======
+
     // Check for structured LLM response matching (fasting glucose / headache / numbness / general)
     const lower = query.toLowerCase();
     if (lower.includes('glucose') || lower.includes('145') || lower.includes('sugar')) {
@@ -546,7 +529,6 @@ export const AssistantTab: React.FC<AssistantTabProps> = ({ persona, onOpenEmerg
           <Send className="w-4 h-4" />
         </button>
       </div>
->>>>>>> c4e0be5 (after redesign)
     </div>
   );
 };
