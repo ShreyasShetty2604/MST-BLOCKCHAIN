@@ -43,8 +43,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsSeedingData(true);
     try {
       await mockApi.resetDemoData();
+      const defaultPatient = await mockApi.getCurrentPatient();
       setDataLoaded(true);
-      onShowToast('Test data successfully loaded (3 Personas, 20+ Records, Audit Ledger)!');
+      onShowToast(`Loaded active demo data for ${defaultPatient.name}! Unlocking dashboard...`);
+      // Immediately open patient dashboard with demo data!
+      onLoginSuccess(defaultPatient);
     } finally {
       setIsSeedingData(false);
     }
@@ -87,11 +90,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         onShowToast(`Login access request approved for ${patient.name}!`);
         setTimeout(() => {
           onLoginSuccess(patient);
-        }, 1200);
+        }, 1000);
       } else {
         onShowToast('MediID not found. Please verify 14-digit MediID.');
       }
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -107,7 +110,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               Initial Demo Environment Setup
             </h3>
             <p className="text-[11px] text-slate-500">
-              {dataLoaded ? 'Seed data active (Rajesh Kumar persona).' : 'Click below to seed pre-populated test data.'}
+              Click below to load test data and directly open the active patient dashboard.
             </p>
           </div>
         </div>
@@ -115,17 +118,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         <button
           onClick={handleLoadTestData}
           disabled={isSeedingData}
-          className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md shrink-0 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md shrink-0 disabled:opacity-50 flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
         >
           {isSeedingData ? (
             <>
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              <span>Loading...</span>
+              <span>Loading Demo Data...</span>
             </>
           ) : (
             <>
               <Database className="w-3.5 h-3.5" />
-              <span>{dataLoaded ? 'Reload Test Data' : 'Load Test Data'}</span>
+              <span>Load Test Data & Launch Dashboard</span>
             </>
           )}
         </button>
