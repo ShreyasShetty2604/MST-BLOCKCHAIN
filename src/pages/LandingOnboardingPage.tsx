@@ -246,6 +246,13 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
         <div className="space-y-16 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full animate-fade-in">
           {/* Hero Section */}
           <div className="text-center space-y-6 max-w-3xl mx-auto pt-6">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1.5 shadow-md">
+                <img src="/logo.png" alt="MediVault Emblem" className="w-full h-full object-contain" />
+              </div>
+              <img src="/logo-brand.png" alt="MEDiVault Logo" className="h-10 sm:h-12 object-contain dark:brightness-125 dark:bg-white/95 dark:px-3 dark:py-1 dark:rounded-xl shadow-xs" />
+            </div>
+
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/80 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5 text-teal-600" />
               <span>Next-Gen Sovereign Health Identity</span>

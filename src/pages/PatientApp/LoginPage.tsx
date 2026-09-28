@@ -155,8 +155,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 text-center">
         {/* Lock Icon Header */}
         <div className="space-y-2">
-          <div className="w-16 h-16 rounded-3xl bg-teal-700 text-white flex items-center justify-center mx-auto shadow-glow-teal">
-            <Lock className="w-8 h-8" />
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1 shadow-sm">
+              <img src="/logo.png" alt="MediVault Emblem" className="w-full h-full object-contain" />
+            </div>
+            <img src="/logo-brand.png" alt="MEDiVault Logo" className="h-8 object-contain dark:brightness-125 dark:bg-white/95 dark:px-2 dark:py-0.5 dark:rounded-lg shadow-xs" />
           </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
             Unlock Sovereign MediVault

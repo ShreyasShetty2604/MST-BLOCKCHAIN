@@ -850,13 +850,13 @@ export const mockApi = {
       write(KEYS.PERSONAS, personas);
     }
 
-    // Audit log
+    // Audit log (Record Added + CheckupCompleted EVM Event)
     const auditLogs: AuditLog[] = readScoped<AuditLog>(KEYS.AUDIT_LOGS, targetKey);
     auditLogs.unshift({
       id: `aud-${Date.now()}`,
       eventType: 'Record Added',
       actor: `${hospitalName} (${input.doctorName})`,
-      action: `Anchored hospital-verified record: ${input.title} (AES-256-GCM encrypted)`,
+      action: `CheckupCompleted EVM Event: Anchored hospital report '${input.title}'. Reset last-done & recomputed reminder schedule.`,
       timestamp: 'Just now',
       txHash,
       blockNumber: newRec.blockNumber,
@@ -1050,6 +1050,20 @@ export const mockApi = {
       target.isFlagged = true;
       target.flagReason = reason;
       writeScoped(KEYS.AUDIT_LOGS, logs);
+
+      // Slash matching hospital trust score by 50 points (-50 penalty on misuse flag)
+      const hospitals: Hospital[] = read<Hospital[]>(KEYS.HOSPITALS, []);
+      const matchedHosp = hospitals.find(
+        (h) => target.actor.toLowerCase().includes(h.name.toLowerCase()) || h.name.toLowerCase().includes(target.actor.toLowerCase())
+      ) || hospitals[0];
+
+      if (matchedHosp) {
+        matchedHosp.trustScore = Math.max(0, matchedHosp.trustScore - 50.0);
+        if (matchedHosp.trustScore <= 50) {
+          matchedHosp.status = 'Suspended';
+        }
+        write(KEYS.HOSPITALS, hospitals);
+      }
     }
   },
 
@@ -1246,6 +1260,25 @@ export const mockApi = {
     requests.unshift(newReq);
     writeScoped(KEYS.REQUESTS, requests);
     return newReq;
+  },
+
+  logAIAccess: async (patientId: string | null = currentPersonaId()): Promise<{ txHash: string; blockNumber: number }> => {
+    await delay(300);
+    const txHash = generateTxHash();
+    const blockNumber = 4820600 + Math.floor(Math.random() * 100);
+    const logs: AuditLog[] = readScoped<AuditLog>(KEYS.AUDIT_LOGS, patientId);
+    logs.unshift({
+      id: `aud-${Date.now()}`,
+      eventType: 'AI Read',
+      actor: 'MediVault Privacy AI Daemon',
+      action: 'AIAccessed EVM Event: Cryptographic session initialized with minimal context (age, conditions, allergies)',
+      timestamp: 'Just now',
+      txHash,
+      blockNumber,
+      isEmergency: false
+    });
+    writeScoped(KEYS.AUDIT_LOGS, logs, patientId);
+    return { txHash, blockNumber };
   },
 
   resetDemoData: async (): Promise<void> => {

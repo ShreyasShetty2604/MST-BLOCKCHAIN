@@ -141,6 +141,20 @@ const CHECKUP_RULES: {
     months: 12,
     appliesTo: /diabet/i,
     matches: (r) => /retina|ophthalm|eye/i.test(r.title)
+  },
+  {
+    id: 'foot',
+    title: 'Diabetic Foot & Monofilament Exam',
+    months: 12,
+    appliesTo: /diabet/i,
+    matches: (r) => /foot|monofilament|neuropathy|podiat/i.test(r.title)
+  },
+  {
+    id: 'annual40',
+    title: 'Annual Comprehensive Physical (Age 40+)',
+    months: 12,
+    appliesTo: /.*|40/i,
+    matches: (r) => /annual|physical|checkup|wellness|intake/i.test(r.title)
   }
 ];
 
