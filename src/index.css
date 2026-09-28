@@ -118,3 +118,73 @@
 .animate-bounce-short {
   animation: bounceShort 1.5s ease-in-out infinite;
 }
+
+/* Assistant: a quieter, focused workspace with a project-native animated companion. */
+.assistant-shell {
+  gap: 1rem;
+  color: #18353a;
+}
+
+.assistant-safety {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem;
+  padding: .65rem 1rem;
+  border: 1px solid #fde29a;
+  border-radius: 1rem;
+  background: #fffbea;
+  color: #986117;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.assistant-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 148px;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid rgba(173, 221, 214, .9);
+  border-radius: 1.5rem;
+  background: radial-gradient(circle at 83% 20%, rgba(181, 244, 235, .78), transparent 25%), linear-gradient(118deg, #effbf8, #f8fcfb 58%, #eff9f7);
+  box-shadow: 0 16px 40px rgba(15, 118, 110, .08);
+}
+
+.dark .assistant-hero { background: radial-gradient(circle at 83% 20%, rgba(20, 94, 87, .55), transparent 25%), linear-gradient(118deg, #102c2c, #102023 58%, #112b2b); border-color: #285d5b; color: #e6fffa; }
+.assistant-eyebrow { display: flex; align-items: center; gap: .4rem; color: #0f766e; font-size: .69rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+.assistant-hero h1 { margin: .3rem 0; color: #153c3d; font-size: clamp(1.25rem, 2.4vw, 1.7rem); font-weight: 800; letter-spacing: -.035em; }
+.dark .assistant-hero h1 { color: #f0fffc; }
+.assistant-hero p { max-width: 38rem; margin: 0; color: #5b7476; font-size: .78rem; line-height: 1.5; }
+.dark .assistant-hero p { color: #a8c7c4; }
+.assistant-status { display: inline-flex; align-items: center; gap: .4rem; margin-top: .9rem; padding: .35rem .65rem; border-radius: 999px; background: rgba(255, 255, 255, .72); color: #39706c; font-size: .68rem; font-weight: 700; box-shadow: 0 2px 8px rgba(15, 118, 110, .07); }
+.dark .assistant-status { background: rgba(15, 44, 43, .78); color: #b4dfd8; }
+.assistant-status-dot { width: .45rem; height: .45rem; border-radius: 999px; background: #2bc7a8; box-shadow: 0 0 0 3px rgba(43, 199, 168, .15); }
+
+.nurse-scene { position: relative; width: 168px; height: 124px; flex: 0 0 168px; perspective: 500px; }
+.nurse-orbit { position: absolute; inset: 13px 19px; border: 1px solid rgba(44, 180, 255, .38); border-radius: 50%; transform: rotateX(66deg) rotateZ(-16deg); animation: nurse-orbit 5s linear infinite; }
+.nurse-orbit-two { inset: 25px 5px; border-color: rgba(119, 96, 238, .3); animation-duration: 7s; animation-direction: reverse; }
+.nurse-figure { position: absolute; top: 6px; left: 53px; width: 67px; height: 108px; transform-style: preserve-3d; animation: nurse-float 3.8s ease-in-out infinite; filter: drop-shadow(0 12px 8px rgba(15, 90, 177, .22)); }
+.nurse-figure::before, .nurse-figure::after { content: ''; position: absolute; z-index: -1; top: 57px; width: 17px; height: 39px; border: 3px solid #b8f2ff; border-radius: 12px; background: linear-gradient(135deg, #41d6ff, #147dcc); box-shadow: inset -4px -3px 7px rgba(0, 42, 110, .24); }
+.nurse-figure::before { left: -10px; transform: rotate(22deg); }.nurse-figure::after { right: -10px; transform: rotate(-22deg); }
+.nurse-antenna { position: absolute; top: -3px; left: 31px; width: 5px; height: 12px; border-radius: 99px; background: #34d8ff; }
+.nurse-antenna::before { content: ''; position: absolute; top: -5px; left: -3px; width: 11px; height: 11px; border-radius: 999px; background: #9df4ff; box-shadow: 0 0 0 4px rgba(83, 212, 255, .22); }
+.nurse-head { position: absolute; z-index: 1; top: 5px; left: 5px; display: grid; width: 57px; height: 47px; place-items: center; border: 3px solid #c7f7ff; border-radius: 21px 21px 17px 17px; background: radial-gradient(circle at 50% 42%, #183f73 0 35%, #071d42 62%, #041329 100%); color: #7cedff; box-shadow: inset -6px -5px 11px rgba(0, 10, 48, .48), inset 5px 4px 9px rgba(133, 240, 255, .24), 0 0 12px rgba(40, 205, 255, .32); transform: translateZ(12px); }
+.nurse-head svg { width: 25px; height: 25px; }
+.nurse-body { position: absolute; bottom: 10px; left: 8px; display: flex; align-items: center; justify-content: center; gap: 3px; width: 52px; height: 48px; border: 3px solid #c9f8ff; border-radius: 17px 17px 20px 20px; background: linear-gradient(135deg, #48d7ff, #187fc9 68%, #105da8); color: white; box-shadow: inset -7px -4px 10px rgba(0, 48, 124, .25); transform: translateZ(4px); }
+.nurse-body::before, .nurse-body::after { content: ''; position: absolute; top: 39px; width: 14px; height: 25px; border: 3px solid #c7f7ff; border-radius: 8px 8px 11px 11px; background: linear-gradient(135deg, #3ad3ff, #176db7); }.nurse-body::before { left: 4px; }.nurse-body::after { right: 4px; }
+.nurse-body svg { width: 17px; height: 17px; }.nurse-body span { font-size: 8px; font-weight: 900; }.nurse-caption { position: absolute; right: -2px; bottom: -3px; padding: .25rem .45rem; border: 1px solid rgba(143, 217, 255, .9); border-radius: 999px; background: rgba(255,255,255,.84); color: #2870a3; font-size: .61rem; font-weight: 800; box-shadow: 0 4px 10px rgba(13, 104, 189, .13); }
+
+.assistant-chat { padding: 1.15rem; border: 1px solid #dcebe8; border-radius: 1.5rem; background: linear-gradient(145deg, #f8fcfc, #f4f9f8); box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }.dark .assistant-chat { border-color: #254746; background: #0d1f22; }
+.assistant-message-meta { color: #87a1a1; font-size: .65rem; font-weight: 700; letter-spacing: .02em; }.assistant-message-meta span { padding: 0 .22rem; color: #c0d0cf; }.assistant-message { border-radius: 1.2rem; line-height: 1.55; }.assistant-message-ai { border: 1px solid #e0eeeb; background: rgba(255,255,255,.94); color: #29484a; box-shadow: 0 8px 20px rgba(19, 83, 80, .06); }.dark .assistant-message-ai { border-color: #2a4b4b; background: #132b2d; color: #d6edeb; }.assistant-message-user { border-bottom-right-radius: .35rem; background: linear-gradient(135deg, #087f76, #0b6d69); color: white; box-shadow: 0 8px 18px rgba(8, 127, 118, .18); }.assistant-typing { display: flex; align-items: center; gap: .5rem; color: #41847d; font-size: .72rem; font-weight: 600; }
+
+.assistant-suggestions { display: flex; align-items: center; gap: .8rem; overflow: hidden; color: #5b7979; font-size: .69rem; font-weight: 800; }.assistant-suggestions > span { display: flex; align-items: center; gap: .35rem; white-space: nowrap; }.assistant-suggestions > div { display: flex; gap: .45rem; overflow-x: auto; padding: .15rem 0; }.assistant-suggestions button { flex: 0 0 auto; padding: .42rem .7rem; border: 1px solid #cce8e3; border-radius: 999px; background: #f4fffc; color: #23736c; font-size: .68rem; font-weight: 700; transition: .2s ease; }.assistant-suggestions button:hover { border-color: #74cbbf; background: #e6faf5; transform: translateY(-1px); }.dark .assistant-suggestions button { border-color: #285b58; background: #112d2e; color: #a8e5dd; }
+.assistant-composer { display: flex; gap: .6rem; padding: .45rem; border: 1px solid #b9ded7; border-radius: 1.2rem; background: white; box-shadow: 0 10px 24px rgba(15, 118, 110, .08); }.dark .assistant-composer { border-color: #2c6662; background: #102729; }.assistant-composer input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; padding: .6rem .8rem; color: inherit; font-size: .78rem; }.assistant-composer button { display: grid; width: 2.65rem; place-items: center; border-radius: .9rem; background: linear-gradient(135deg, #15948a, #0a716d); color: white; box-shadow: 0 5px 12px rgba(8, 111, 106, .25); transition: .2s ease; }.assistant-composer button:hover { transform: translateY(-1px) scale(1.02); }
+
+@keyframes nurse-float { 0%, 100% { transform: translateY(2px) rotateY(-7deg); } 50% { transform: translateY(-7px) rotateY(7deg); } }
+@keyframes nurse-orbit { to { transform: rotateX(66deg) rotateZ(344deg); } }
+@media (max-width: 640px) { .assistant-hero { padding: 1.2rem; }.nurse-scene { width: 112px; flex-basis: 112px; transform: scale(.82); transform-origin: right center; }.assistant-suggestions { align-items: flex-start; flex-direction: column; gap: .35rem; } }
+@media (prefers-reduced-motion: reduce) { .nurse-figure, .nurse-orbit { animation: none; }.assistant-suggestions button, .assistant-composer button { transition: none; } }
