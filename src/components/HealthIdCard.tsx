@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-<<<<<<< HEAD
-import { Copy, Check, QrCode, ShieldAlert, RotateCw, HeartPulse, Shield, ExternalLink, Lock } from 'lucide-react';
-=======
-import { Copy, Check, QrCode, ShieldAlert, RotateCw, HeartPulse, Shield, Sparkles } from 'lucide-react';
->>>>>>> origin/main
+import { Copy, Check, QrCode, ShieldAlert, RotateCw, HeartPulse, Shield, Sparkles, ExternalLink, Lock } from 'lucide-react';
 import { PatientPersona } from '../mock/types';
 import { formatMediId } from '../lib/formatters';
 
@@ -38,11 +34,7 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
   return (
     <div className="w-full max-w-md mx-auto perspective-1000 my-4 group">
       <div
-<<<<<<< HEAD
-        className={`relative w-full h-[240px] rounded-2xl shadow-xl transition-transform duration-700 transform-style-3d cursor-pointer ${
-=======
         className={`relative w-full h-[240px] rounded-3xl shadow-xl transition-transform duration-700 transform-style-3d cursor-pointer ${
->>>>>>> origin/main
           isFlipped ? 'rotate-y-180' : ''
         }`}
         onClick={() => setIsFlipped(!isFlipped)}
@@ -56,11 +48,7 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
         aria-label="Patient Health ID Card. Press enter or click to flip."
       >
         {/* FRONT OF CARD */}
-<<<<<<< HEAD
-        <div className="absolute inset-0 w-full h-full rounded-2xl p-5 bg-hologram text-white flex flex-col justify-between overflow-hidden border border-white/20 backface-hidden shadow-glow-teal">
-=======
         <div className="absolute inset-0 w-full h-full rounded-3xl p-6 bg-hologram text-white flex flex-col justify-between overflow-hidden border border-white/20 backface-hidden shadow-glow-teal group-hover:shadow-2xl transition-shadow">
->>>>>>> origin/main
           {/* Holographic Shim Overlay */}
           <div className="absolute inset-0 hologram-overlay pointer-events-none opacity-40 animate-hologram-shim" />
           <div className="absolute -right-12 -bottom-12 w-56 h-56 bg-white/10 rounded-full blur-3xl pointer-events-none" />
