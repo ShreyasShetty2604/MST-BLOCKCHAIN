@@ -187,23 +187,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ------------------------------------------------------------------------
-    // 2. GET /api/identity/:vaultId
+    // 2. GET /api/identity/:query (Lookup by Vault ID or MediID)
     // ------------------------------------------------------------------------
-    const identityMatch = pathname.match(/^\/api\/identity\/(VLT-[A-F0-9]{12})$/i);
-    if (identityMatch && method === 'GET') {
-      const vaultId = identityMatch[1].toUpperCase();
-      const vault = db.getVaultById(vaultId);
+    const identityMatch = pathname.match(/^\/api\/identity\/([A-Za-z0-9-]+)$/i);
+    if (identityMatch && method === 'GET' && pathname !== '/api/identity/register' && pathname !== '/api/identity/scan') {
+      const query = identityMatch[1];
+      const vault = db.getVaultByIdOrMediId(query);
 
       if (!vault) {
         sendJson(res, 404, {
           success: false,
-          error: `Vault not found: ${vaultId}`
+          error: `Vault not found matching identifier: ${query}`
         });
         return;
       }
 
-      const bio = db.getFingerprint(vaultId);
-      const dna = db.getDna(vaultId);
+      const bio = db.getFingerprint(vault.vaultId);
+      const dna = db.getDna(vault.vaultId);
 
       // Return sanitized public view - NEVER leak raw biometric/DNA data or keys!
       sendJson(res, 200, {
@@ -229,6 +229,127 @@ const server = http.createServer(async (req, res) => {
           },
           qrReferenceUrl: `https://medivault.id/vault/${vault.vaultId}`
         }
+      });
+      return;
+    }
+
+    // ------------------------------------------------------------------------
+    // 2b. POST /api/identity/scan (Camera QR Code Scanner Endpoint)
+    // ------------------------------------------------------------------------
+    if (pathname === '/api/identity/scan' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const { qrPayload, scannerRole, scannerName } = body;
+
+      if (!qrPayload) {
+        sendJson(res, 400, { success: false, error: 'qrPayload is required' });
+        return;
+      }
+
+      // Parse payload: could be URL, JSON, raw MediID, or Vault ID
+      let lookupKey = String(qrPayload).trim();
+
+      // Check if JSON
+      if (lookupKey.startsWith('{') && lookupKey.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(lookupKey);
+          lookupKey = parsed.vaultId || parsed.mediId || lookupKey;
+        } catch {
+          // not valid JSON, proceed with raw string
+        }
+      }
+
+      // Check if URL (e.g. https://medivault.id/vault/VLT-8F29A31B72C1)
+      const urlMatch = lookupKey.match(/vault\/(VLT-[A-F0-9]{12})/i) || lookupKey.match(/mediId=([0-9-]+)/i);
+      if (urlMatch) {
+        lookupKey = urlMatch[1];
+      }
+
+      const vault = db.getVaultByIdOrMediId(lookupKey);
+      if (!vault) {
+        sendJson(res, 404, {
+          success: false,
+          error: `No patient found matching scanned QR code: "${lookupKey}"`
+        });
+        return;
+      }
+
+      const bio = db.getFingerprint(vault.vaultId);
+      const dna = db.getDna(vault.vaultId);
+      const rawRecords = db.getRecords(vault.vaultId);
+
+      // Decrypt records for authorized scan
+      const decryptedRecords = await Promise.all(
+        rawRecords.map(async (r) => {
+          let payload: any = { summary: 'Unable to decrypt record payload', details: {} };
+          let isIntegrityOk = true;
+          try {
+            const dec = await decryptData(r.encryptedPayload);
+            payload = JSON.parse(dec);
+            const computed = await hashData(payload);
+            isIntegrityOk = computed.toLowerCase() === r.recordHash.toLowerCase();
+          } catch {
+            isIntegrityOk = false;
+          }
+          return {
+            id: r.id,
+            title: r.title,
+            category: r.category,
+            recordType: r.recordType,
+            source: r.source,
+            sourceType: r.sourceType,
+            date: r.date,
+            doctor: r.doctor,
+            txHash: r.txHash,
+            blockNumber: r.blockNumber,
+            status: isIntegrityOk ? r.status : 'tampered',
+            recordHash: r.recordHash,
+            payload: {
+              summary: payload.summary || '',
+              details: payload.details || {}
+            }
+          };
+        })
+      );
+
+      // Log access audit entry
+      db.logAccess({
+        id: `log-${Date.now()}`,
+        vaultId: vault.vaultId,
+        requesterId: scannerRole === 'hospital' ? 'HOSPITAL_CAMERA_SCAN' : 'PARAMEDIC_EMERGENCY_SCAN',
+        requesterName: scannerName || (scannerRole === 'hospital' ? 'Hospital Camera Scanner' : 'Emergency Triage Paramedic'),
+        resourceType: 'identity',
+        action: 'QR_CAMERA_SCAN',
+        granted: true,
+        reason: 'Optical QR Camera Scan authentication and record lookup',
+        timestamp: new Date().toISOString()
+      });
+
+      sendJson(res, 200, {
+        success: true,
+        scannedPayload: qrPayload,
+        resolvedKey: lookupKey,
+        vault: {
+          vaultId: vault.vaultId,
+          mediId: vault.mediId,
+          mediIdHash: vault.mediIdHash,
+          name: vault.name,
+          dob: vault.dob,
+          gender: vault.gender,
+          phoneMasked: vault.phoneMasked,
+          bloodGroup: vault.bloodGroup,
+          allergies: vault.allergies,
+          conditions: vault.conditions,
+          emergencyContact: vault.emergencyContact,
+          securityStatus: {
+            mediIdVerified: true,
+            fingerprintProtected: Boolean(bio),
+            dnaProtected: Boolean(dna),
+            encryptionActive: 'AES-256-GCM',
+            blockchainIntegrity: 'VERIFIED'
+          },
+          qrReferenceUrl: `https://medivault.id/vault/${vault.vaultId}`
+        },
+        records: decryptedRecords
       });
       return;
     }
@@ -761,16 +882,17 @@ const server = http.createServer(async (req, res) => {
     // ------------------------------------------------------------------------
     // 10. GET /api/records/:vaultId (Decrypted Record Retrieval)
     // ------------------------------------------------------------------------
-    const recordsMatch = pathname.match(/^\/api\/records\/(VLT-[A-F0-9]{12})$/i);
-    if (recordsMatch && method === 'GET') {
-      const vaultId = recordsMatch[1].toUpperCase();
-      const vault = db.getVaultById(vaultId);
+    const recordsMatch = pathname.match(/^\/api\/records\/([A-Za-z0-9-]+)$/i);
+    if (recordsMatch && method === 'GET' && pathname !== '/api/records/create') {
+      const lookupQuery = recordsMatch[1];
+      const vault = db.getVaultByIdOrMediId(lookupQuery);
 
       if (!vault) {
         sendJson(res, 404, { success: false, error: 'Vault not found' });
         return;
       }
 
+      const vaultId = vault.vaultId;
       const rawRecords = db.getRecords(vaultId);
       const decryptedRecords = await Promise.all(
         rawRecords.map(async (r) => {

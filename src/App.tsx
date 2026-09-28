@@ -6,6 +6,7 @@ import { Toast } from './components/Toast';
 import { EmergencySheet } from './components/EmergencySheet';
 import { DemoToolsDrawer } from './components/DemoToolsDrawer';
 import { BackendVisualizerModal } from './components/BackendVisualizerModal';
+import { CameraQrScannerModal } from './components/CameraQrScannerModal';
 
 // Pages
 import { LandingOnboardingPage } from './pages/LandingOnboardingPage';
@@ -18,17 +19,24 @@ import { AccessTab } from './pages/PatientApp/AccessTab';
 import { AssistantTab } from './pages/PatientApp/AssistantTab';
 import { WellnessTab } from './pages/PatientApp/WellnessTab';
 import { HospitalPortalPage } from './pages/HospitalPortalPage';
+import { HospitalLandingPage, HospitalStaffSession } from './pages/HospitalLandingPage';
 import { AdminPortalPage } from './pages/AdminPortalPage';
+import { AdminLandingPage, AdminOfficerSession } from './pages/AdminLandingPage';
 
 export function App() {
   const [role, setRole] = useState<Role | 'landing'>('landing');
   const [patientTab, setPatientTab] = useState<PatientTab>('home');
   const [isPatientLoggedIn, setIsPatientLoggedIn] = useState<boolean>(false);
+  const [isHospitalLoggedIn, setIsHospitalLoggedIn] = useState<boolean>(false);
+  const [hospitalSession, setHospitalSession] = useState<HospitalStaffSession | null>(null);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const [adminSession, setAdminSession] = useState<AdminOfficerSession | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [activePersona, setActivePersona] = useState<PatientPersona | null>(null);
   const [reminders, setReminders] = useState<CheckupReminder[]>([]);
   const [emergencyOpen, setEmergencyOpen] = useState<boolean>(false);
   const [backendVisualizerOpen, setBackendVisualizerOpen] = useState<boolean>(false);
+  const [cameraScannerOpen, setCameraScannerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Load initial active persona & data
@@ -91,6 +99,19 @@ export function App() {
         isPatientLoggedIn={isPatientLoggedIn}
         onLogoutPatient={handleLogoutPatient}
         onOpenBackendVisualizer={() => setBackendVisualizerOpen(true)}
+        onOpenScanner={() => setCameraScannerOpen(true)}
+        isHospitalLoggedIn={isHospitalLoggedIn}
+        hospitalFacilityName={hospitalSession?.facilityName}
+        onLogoutHospital={() => {
+          setIsHospitalLoggedIn(false);
+          showToast('Hospital session closed.');
+        }}
+        isAdminLoggedIn={isAdminLoggedIn}
+        adminOfficerName={adminSession?.officerName}
+        onLogoutAdmin={() => {
+          setIsAdminLoggedIn(false);
+          showToast('Governance session locked.');
+        }}
       />
 
       {/* Main Content View Switcher */}
@@ -104,6 +125,8 @@ export function App() {
               setPatientTab('home');
             }}
             onGoHospitalLogin={() => setRole('hospital')}
+            onGoAdminLogin={() => setRole('admin')}
+            onOpenScanner={() => setCameraScannerOpen(true)}
           />
         )}
 
@@ -125,6 +148,7 @@ export function App() {
                     reminders={reminders}
                     onOpenEmergency={() => setEmergencyOpen(true)}
                     onNavigateTab={(t) => setPatientTab(t)}
+                    onOpenScanner={() => setCameraScannerOpen(true)}
                   />
                 )}
 
@@ -155,9 +179,50 @@ export function App() {
           )
         )}
 
-        {role === 'hospital' && <HospitalPortalPage onShowToast={showToast} />}
+        {role === 'hospital' && (
+          !isHospitalLoggedIn ? (
+            <HospitalLandingPage
+              onLoginSuccess={(session) => {
+                setHospitalSession(session);
+                setIsHospitalLoggedIn(true);
+              }}
+              onGoBack={() => setRole('landing')}
+              onOpenScanner={() => setCameraScannerOpen(true)}
+              onShowToast={showToast}
+            />
+          ) : (
+            <HospitalPortalPage
+              onShowToast={showToast}
+              session={hospitalSession}
+              onLogout={() => {
+                setIsHospitalLoggedIn(false);
+                showToast('Hospital session closed.');
+              }}
+            />
+          )
+        )}
 
-        {role === 'admin' && <AdminPortalPage onShowToast={showToast} />}
+        {role === 'admin' && (
+          !isAdminLoggedIn ? (
+            <AdminLandingPage
+              onLoginSuccess={(session) => {
+                setAdminSession(session);
+                setIsAdminLoggedIn(true);
+              }}
+              onGoBack={() => setRole('landing')}
+              onShowToast={showToast}
+            />
+          ) : (
+            <AdminPortalPage
+              onShowToast={showToast}
+              session={adminSession}
+              onLogout={() => {
+                setIsAdminLoggedIn(false);
+                showToast('Governance session locked.');
+              }}
+            />
+          )
+        )}
       </div>
 
       {/* Full-Screen Emergency Sheet Modal */}
@@ -173,6 +238,17 @@ export function App() {
       <BackendVisualizerModal
         isOpen={backendVisualizerOpen}
         onClose={() => setBackendVisualizerOpen(false)}
+      />
+
+      {/* Universal Optical Camera QR Scanner Modal */}
+      <CameraQrScannerModal
+        isOpen={cameraScannerOpen}
+        onClose={() => setCameraScannerOpen(false)}
+        scannerRole={role === 'hospital' ? 'hospital' : 'emergency'}
+        title="Universal MediID Optical Camera Scanner"
+        onPatientLoaded={(scannedPatient) => {
+          showToast(`✓ Scanned Patient: ${scannedPatient.name} (${scannedPatient.mediId})`);
+        }}
       />
 
       {/* Presenter Demo Toolbox Drawer (Ctrl+K) */}

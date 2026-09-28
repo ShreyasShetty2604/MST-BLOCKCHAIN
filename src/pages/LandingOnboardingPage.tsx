@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Shield, Key, Lock, ArrowRight, Fingerprint, Dna, CheckCircle2,
-  FileCheck, Download, Building2, ShieldCheck, Sparkles, RefreshCw
+  FileCheck, Download, Building2, ShieldCheck, Sparkles, RefreshCw, Camera, ShieldAlert
 } from 'lucide-react';
 import { HealthIdCard } from '../components/HealthIdCard';
 import { PendingChainChip } from '../components/ChainBadge';
@@ -12,11 +12,15 @@ import { registerDeviceBiometric, scanDeviceBiometric } from '../lib/biometrics'
 interface LandingOnboardingPageProps {
   onCompleteOnboarding: () => void;
   onGoHospitalLogin: () => void;
+  onGoAdminLogin?: () => void;
+  onOpenScanner?: () => void;
 }
 
 export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   onCompleteOnboarding,
-  onGoHospitalLogin
+  onGoHospitalLogin,
+  onGoAdminLogin,
+  onOpenScanner
 }) => {
   const [view, setView] = useState<'landing' | 'onboarding'>('landing');
   const [step, setStep] = useState<number>(1);
@@ -218,9 +222,29 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                 onClick={onGoHospitalLogin}
                 className="px-8 py-4 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-base border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 transition-all"
               >
-                <Building2 className="w-5 h-5 text-indigo-600" />
-                <span>Hospital Portal Login</span>
+                <Building2 className="w-5 h-5 text-teal-600" />
+                <span>Hospital Portal</span>
               </button>
+
+              {onGoAdminLogin && (
+                <button
+                  onClick={onGoAdminLogin}
+                  className="px-8 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-base border border-slate-700 shadow-sm flex items-center gap-3 transition-all cursor-pointer"
+                >
+                  <ShieldAlert className="w-5 h-5 text-indigo-400" />
+                  <span>Admin & Governance</span>
+                </button>
+              )}
+
+              {onOpenScanner && (
+                <button
+                  onClick={onOpenScanner}
+                  className="px-8 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-800 dark:text-indigo-200 font-bold text-base border border-indigo-200 dark:border-indigo-800 shadow-sm flex items-center gap-3 transition-all cursor-pointer"
+                >
+                  <Camera className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Scan MediID QR</span>
+                </button>
+              )}
             </div>
 
             {/* Live Biometric Sensor Status Toast */}

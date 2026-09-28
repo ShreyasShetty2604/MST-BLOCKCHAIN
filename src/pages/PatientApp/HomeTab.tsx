@@ -9,13 +9,15 @@ interface HomeTabProps {
   reminders: CheckupReminder[];
   onOpenEmergency: () => void;
   onNavigateTab: (tab: PatientTab) => void;
+  onOpenScanner?: () => void;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
   persona,
   reminders,
   onOpenEmergency,
-  onNavigateTab
+  onNavigateTab,
+  onOpenScanner
 }) => {
   const dueReminders = reminders.filter((r) => r.dueState !== 'done').slice(0, 2);
 
@@ -41,8 +43,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </button>
       </div>
 
-      {/* Health ID Card */}
-      <HealthIdCard persona={persona} onOpenEmergency={onOpenEmergency} />
+      {/* Health ID Card with Live Scannable Dynamic QR */}
+      <HealthIdCard
+        persona={persona}
+        onOpenEmergency={onOpenEmergency}
+        onOpenScanner={onOpenScanner}
+      />
 
       {/* Quick Identity Security Access Banner */}
       <div

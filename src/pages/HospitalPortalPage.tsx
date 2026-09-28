@@ -8,12 +8,16 @@ import { ChainBadge } from '../components/ChainBadge';
 import { TimelineItem } from '../components/TimelineItem';
 import { mockApi } from '../mock/api';
 import { registerDeviceBiometric } from '../lib/biometrics';
+import { CameraQrScannerModal } from '../components/CameraQrScannerModal';
+import { HospitalStaffSession } from './HospitalLandingPage';
 
 interface HospitalPortalPageProps {
   onShowToast: (msg: string) => void;
+  session?: HospitalStaffSession | null;
+  onLogout?: () => void;
 }
 
-export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowToast }) => {
+export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowToast, session, onLogout }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('91-4827-6153-2043');
   const [showQrModal, setShowQrModal] = useState(false);
@@ -243,29 +247,46 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                City General Hospital Portal
+                {session?.facilityName || 'City General Hospital Portal'}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200">
-                Approved by Admin
+                Approved Provider
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Wallet: 0x71C7656EC7ab88b098defB751B7401B5f6d8976F • Polygon Amoy
+            <p className="text-xs text-slate-500 font-mono mt-0.5 flex flex-wrap items-center gap-2">
+              <span>{session?.staffName ? `${session.staffName} (${session.staffRole || 'Duty Physician'})` : 'Dr. A. R. Mehta'}</span>
+              <span>•</span>
+              <span>Wallet: {session?.walletAddress ? `${session.walletAddress.slice(0, 6)}...${session.walletAddress.slice(-4)}` : '0x71C7...976F'}</span>
+              <span>•</span>
+              <span className="text-teal-600 dark:text-teal-400 font-sans font-semibold">Polygon Amoy</span>
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleConnectWallet}
-          className={`px-5 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-2 shadow-md transition-all ${
-            walletConnected
-              ? 'bg-emerald-600 text-white'
-              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-          }`}
-        >
-          <Wallet className="w-4 h-4" />
-          <span>{walletConnected ? 'Wallet Connected (0x71C7...)' : 'Connect Hospital Wallet'}</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleConnectWallet}
+            className={`px-4 py-2 rounded-2xl font-bold text-xs flex items-center gap-2 shadow-md transition-all ${
+              walletConnected
+                ? 'bg-emerald-600 text-white'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            <span>{walletConnected ? 'Wallet Linked' : 'Connect Wallet'}</span>
+          </button>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Exit Hospital Session"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Switch Facility / Exit</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search & Patient Lookup Bar */}
@@ -521,35 +542,21 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
         </div>
       )}
 
-      {/* QR Scanner Mock Modal */}
-      {showQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 text-center">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                Simulated QR Code Camera Scanner
-              </h3>
-              <button onClick={() => setShowQrModal(false)} className="text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="relative w-64 h-64 mx-auto bg-slate-900 rounded-2xl border-2 border-dashed border-teal-500 flex items-center justify-center overflow-hidden shadow-inner">
-              <div className="absolute inset-x-0 h-1 bg-teal-400 shadow-glow-teal animate-scan-line z-20" />
-              <QrCode className="w-32 h-32 text-slate-600 animate-pulse" />
-            </div>
-
-            <p className="text-xs text-slate-500">Point scanner at MediID physical card or patient app screen.</p>
-
-            <button
-              onClick={() => handleSearchPatient('91-2345-6789-0123')}
-              className="w-full py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md"
-            >
-              Simulate Instant QR Match (Rajesh Kumar)
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Real Optical Camera QR Scanner Modal */}
+      <CameraQrScannerModal
+        isOpen={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        scannerRole="hospital"
+        title="Hospital Triage: Optical MediID Scanner"
+        onPatientLoaded={(scannedPatient, scannedRecords) => {
+          setPatient(scannedPatient);
+          setSearchQuery(scannedPatient.mediId);
+          setRecords(scannedRecords);
+          setAccessState('none');
+          setShowQrModal(false);
+          onShowToast(`✓ Camera verified: ${scannedPatient.name} (MediID: ${scannedPatient.mediId})`);
+        }}
+      />
 
       {/* Emergency Break Glass Modal */}
       {showBreakGlassModal && (
