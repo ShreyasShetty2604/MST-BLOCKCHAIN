@@ -5,9 +5,11 @@ import { Header } from './components/Header';
 import { Toast } from './components/Toast';
 import { EmergencySheet } from './components/EmergencySheet';
 import { DemoToolsDrawer } from './components/DemoToolsDrawer';
+import { BackendVisualizerModal } from './components/BackendVisualizerModal';
 
 // Pages
 import { LandingOnboardingPage } from './pages/LandingOnboardingPage';
+import { LoginPage } from './pages/PatientApp/LoginPage';
 import { PatientLayout, PatientTab } from './pages/PatientApp/PatientLayout';
 import { HomeTab } from './pages/PatientApp/HomeTab';
 import { IdentitySecurityTab } from './pages/PatientApp/IdentitySecurityTab';
@@ -21,13 +23,15 @@ import { AdminPortalPage } from './pages/AdminPortalPage';
 export function App() {
   const [role, setRole] = useState<Role | 'landing'>('landing');
   const [patientTab, setPatientTab] = useState<PatientTab>('home');
+  const [isPatientLoggedIn, setIsPatientLoggedIn] = useState<boolean>(false);
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [activePersona, setActivePersona] = useState<PatientPersona | null>(null);
   const [reminders, setReminders] = useState<CheckupReminder[]>([]);
   const [emergencyOpen, setEmergencyOpen] = useState<boolean>(false);
+  const [backendVisualizerOpen, setBackendVisualizerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load initial active persona
+  // Load initial active persona & data
   const refreshPersona = async () => {
     const p = await mockApi.getCurrentPatient();
     const rems = await mockApi.getReminders();
@@ -63,6 +67,18 @@ export function App() {
     setToastMessage(msg);
   };
 
+  const handleLoginSuccess = (persona: PatientPersona) => {
+    setActivePersona(persona);
+    setIsPatientLoggedIn(true);
+    setRole('patient');
+    setPatientTab('home');
+  };
+
+  const handleLogoutPatient = () => {
+    setIsPatientLoggedIn(false);
+    showToast('Patient vault locked.');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 selection:bg-teal-500 selection:text-white">
       {/* Global Navigation Header */}
@@ -72,6 +88,9 @@ export function App() {
         darkMode={darkMode}
         onToggleDarkMode={handleToggleDarkMode}
         activePersona={activePersona}
+        isPatientLoggedIn={isPatientLoggedIn}
+        onLogoutPatient={handleLogoutPatient}
+        onOpenBackendVisualizer={() => setBackendVisualizerOpen(true)}
       />
 
       {/* Main Content View Switcher */}
@@ -80,6 +99,7 @@ export function App() {
           <LandingOnboardingPage
             onCompleteOnboarding={async () => {
               await refreshPersona();
+              setIsPatientLoggedIn(true);
               setRole('patient');
               setPatientTab('home');
             }}
@@ -87,40 +107,52 @@ export function App() {
           />
         )}
 
-        {role === 'patient' && activePersona && (
-          <PatientLayout activeTab={patientTab} onTabChange={setPatientTab}>
-            {patientTab === 'home' && (
-              <HomeTab
-                persona={activePersona}
-                reminders={reminders}
-                onOpenEmergency={() => setEmergencyOpen(true)}
-                onNavigateTab={(t) => setPatientTab(t)}
-              />
-            )}
+        {role === 'patient' && (
+          !isPatientLoggedIn ? (
+            /* AUTHENTICATION GUARD: Render Login Page if Unauthenticated */
+            <LoginPage
+              onLoginSuccess={handleLoginSuccess}
+              onGoToOnboarding={() => setRole('landing')}
+              onShowToast={showToast}
+            />
+          ) : (
+            /* AUTHENTICATED PATIENT APP */
+            activePersona && (
+              <PatientLayout activeTab={patientTab} onTabChange={setPatientTab}>
+                {patientTab === 'home' && (
+                  <HomeTab
+                    persona={activePersona}
+                    reminders={reminders}
+                    onOpenEmergency={() => setEmergencyOpen(true)}
+                    onNavigateTab={(t) => setPatientTab(t)}
+                  />
+                )}
 
-            {patientTab === 'identity' && (
-              <IdentitySecurityTab
-                persona={activePersona}
-                onShowToast={showToast}
-                onOpenEmergency={() => setEmergencyOpen(true)}
-              />
-            )}
+                {patientTab === 'identity' && (
+                  <IdentitySecurityTab
+                    persona={activePersona}
+                    onShowToast={showToast}
+                    onOpenEmergency={() => setEmergencyOpen(true)}
+                  />
+                )}
 
-            {patientTab === 'records' && <RecordsTab />}
+                {patientTab === 'records' && <RecordsTab />}
 
-            {patientTab === 'access' && <AccessTab />}
+                {patientTab === 'access' && <AccessTab />}
 
-            {patientTab === 'assistant' && (
-              <AssistantTab
-                persona={activePersona}
-                onOpenEmergencyCard={() => setEmergencyOpen(true)}
-              />
-            )}
+                {patientTab === 'assistant' && (
+                  <AssistantTab
+                    persona={activePersona}
+                    onOpenEmergencyCard={() => setEmergencyOpen(true)}
+                  />
+                )}
 
-            {patientTab === 'wellness' && (
-              <WellnessTab persona={activePersona} onShowToast={showToast} />
-            )}
-          </PatientLayout>
+                {patientTab === 'wellness' && (
+                  <WellnessTab persona={activePersona} onShowToast={showToast} />
+                )}
+              </PatientLayout>
+            )
+          )
         )}
 
         {role === 'hospital' && <HospitalPortalPage onShowToast={showToast} />}
@@ -136,6 +168,12 @@ export function App() {
           persona={activePersona}
         />
       )}
+
+      {/* Live Backend & Smart Contract Visualizer Modal */}
+      <BackendVisualizerModal
+        isOpen={backendVisualizerOpen}
+        onClose={() => setBackendVisualizerOpen(false)}
+      />
 
       {/* Presenter Demo Toolbox Drawer (Ctrl+K) */}
       <DemoToolsDrawer

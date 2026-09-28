@@ -1,0 +1,57 @@
+{
+  "fasting_glucose_145": {
+    "query": "Fasting blood sugar 145 mg/dL",
+    "structuredReply": {
+      "pointTo": [
+        "Elevated fasting plasma glucose above target range (Target < 130 mg/dL)",
+        "Potential dawn phenomenon or late-evening carbohydrate intake"
+      ],
+      "whatToDo": [
+        "Log your current reading in your self-declared vault history",
+        "Maintain regular hydration and follow prescribed Metformin timing after meals",
+        "Re-check blood glucose 2 hours post-prandial"
+      ],
+      "whenDoctor": [
+        "If blood sugar remains consistently > 200 mg/dL over 2 consecutive days",
+        "If accompanied by persistent nausea, thirst, or confusion"
+      ]
+    }
+  },
+  "metformin_headache": {
+    "query": "Mild headache after Metformin",
+    "structuredReply": {
+      "pointTo": [
+        "Common mild initiation symptom of oral hypoglycemics",
+        "Dehydration or blood pressure fluctuation"
+      ],
+      "whatToDo": [
+        "Drink 500ml water and rest in a cool room",
+        "Check blood pressure if monitor available"
+      ],
+      "whenDoctor": [
+        "If headache is sudden, explosive, or accompanied by blurred vision"
+      ]
+    }
+  },
+  "foot_numbness": {
+    "query": "Foot numbness & tingling",
+    "structuredReply": {
+      "pointTo": [
+        "Diabetic peripheral neuropathy evaluation recommended",
+        "Vitamin B12 level assessment"
+      ],
+      "whatToDo": [
+        "Inspect feet daily for cuts or pressure sores",
+        "Avoid walking barefoot"
+      ],
+      "whenDoctor": [
+        "Schedule routine monofilament foot check with Dr. A. R. Mehta"
+      ]
+    }
+  },
+  "emergency_chest_pain": {
+    "query": "Chest pain and breathlessness",
+    "isRedFlag": true,
+    "emergencyNotice": "CRITICAL EMERGENCY SYMPTOM DETECTED — SEEK EMERGENCY CARE IMMEDIATELY"
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Moon, Sun, User, Building2, ShieldAlert } from 'lucide-react';
+import { Shield, Moon, Sun, User, Building2, ShieldAlert, Lock, Server } from 'lucide-react';
 import { Role, PatientPersona } from '../mock/types';
 
 interface HeaderProps {
@@ -8,6 +8,9 @@ interface HeaderProps {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   activePersona: PatientPersona | null;
+  isPatientLoggedIn?: boolean;
+  onLogoutPatient?: () => void;
+  onOpenBackendVisualizer?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,7 +18,10 @@ export const Header: React.FC<HeaderProps> = ({
   onRoleChange,
   darkMode,
   onToggleDarkMode,
-  activePersona
+  activePersona,
+  isPatientLoggedIn = false,
+  onLogoutPatient,
+  onOpenBackendVisualizer
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -79,21 +85,46 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Right Actions: Persona indicator & Dark Mode Toggle */}
-        <div className="flex items-center gap-3">
-          {activePersona && currentRole === 'patient' && (
-            <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-800 text-xs">
-              <div className="w-7 h-7 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-bold flex items-center justify-center">
-                {activePersona.name.charAt(0)}
+        {/* Right Actions: Persona indicator, Backend Visualizer, Lock button & Dark Mode */}
+        <div className="flex items-center gap-2.5">
+          {/* Backend Visualizer Trigger Button */}
+          {onOpenBackendVisualizer && (
+            <button
+              onClick={onOpenBackendVisualizer}
+              className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/80 hover:bg-teal-100 text-teal-800 dark:text-teal-300 text-xs font-bold flex items-center gap-1.5 border border-teal-200 dark:border-teal-800 transition-colors shadow-xs"
+              title="Open Live Backend & Smart Contract Visualizer"
+            >
+              <Server className="w-3.5 h-3.5 text-teal-600" />
+              <span className="hidden md:inline">Backend Visualizer</span>
+            </button>
+          )}
+
+          {activePersona && currentRole === 'patient' && isPatientLoggedIn && (
+            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs">
+              <div className="hidden lg:flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-bold flex items-center justify-center">
+                  {activePersona.name.charAt(0)}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 block leading-tight">
+                    {activePersona.name}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {activePersona.mediId}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="font-semibold text-slate-800 dark:text-slate-200 block leading-tight">
-                  {activePersona.name}
-                </span>
-                <span className="text-[10px] font-mono text-slate-400">
-                  {activePersona.mediId}
-                </span>
-              </div>
+
+              {onLogoutPatient && (
+                <button
+                  onClick={onLogoutPatient}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-200 dark:border-slate-800 transition-colors"
+                  title="Lock Vault & Log Out"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Lock Vault</span>
+                </button>
+              )}
             </div>
           )}
 
