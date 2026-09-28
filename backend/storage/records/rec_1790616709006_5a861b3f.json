@@ -1,0 +1,8 @@
+{
+  "payloadHash": "0x3c310e8420b04766cf6e4fd6da060245654102a237e7a1acc0c25a8fe6cf9f9c",
+  "vaultId": "0x1234",
+  "iv": "d00ac596b9f6f9bbadbf9ab3",
+  "authTag": "f1b6da009bb34343222a1027185ffd23",
+  "ciphertext": "b9250fceda76facbb86c19874491b111fa5bebaafa38c8b6a7b28d72804edf0e0d61071d3d",
+  "createdAt": "2026-09-28T17:31:49.006Z"
+}
