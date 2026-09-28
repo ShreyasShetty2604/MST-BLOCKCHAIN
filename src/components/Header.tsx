@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Moon, Sun, User, Building2, ShieldAlert, Lock, Server } from 'lucide-react';
+import { Shield, Moon, Sun, User, Building2, ShieldAlert, Lock, Server, Camera } from 'lucide-react';
 import { Role, PatientPersona } from '../mock/types';
 
 interface HeaderProps {
@@ -11,6 +11,13 @@ interface HeaderProps {
   isPatientLoggedIn?: boolean;
   onLogoutPatient?: () => void;
   onOpenBackendVisualizer?: () => void;
+  onOpenScanner?: () => void;
+  isHospitalLoggedIn?: boolean;
+  hospitalFacilityName?: string;
+  onLogoutHospital?: () => void;
+  isAdminLoggedIn?: boolean;
+  adminOfficerName?: string;
+  onLogoutAdmin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,7 +28,14 @@ export const Header: React.FC<HeaderProps> = ({
   activePersona,
   isPatientLoggedIn = false,
   onLogoutPatient,
-  onOpenBackendVisualizer
+  onOpenBackendVisualizer,
+  onOpenScanner,
+  isHospitalLoggedIn = false,
+  hospitalFacilityName,
+  onLogoutHospital,
+  isAdminLoggedIn = false,
+  adminOfficerName,
+  onLogoutAdmin
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -87,6 +101,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions: Persona indicator, Backend Visualizer, Lock button & Dark Mode */}
         <div className="flex items-center gap-2.5">
+          {/* Universal Optical Camera QR Scanner Trigger */}
+          {onOpenScanner && (
+            <button
+              onClick={onOpenScanner}
+              className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-xs cursor-pointer"
+              title="Open Optical QR Camera Scanner"
+            >
+              <Camera className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">Scan QR</span>
+            </button>
+          )}
+
           {/* Backend Visualizer Trigger Button */}
           {onOpenBackendVisualizer && (
             <button
@@ -123,6 +149,42 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Lock className="w-3.5 h-3.5 text-slate-500" />
                   <span className="hidden sm:inline">Lock Vault</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {currentRole === 'hospital' && isHospitalLoggedIn && (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs">
+              <span className="px-2.5 py-1 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-bold border border-teal-200 dark:border-teal-800 hidden sm:inline">
+                {hospitalFacilityName || 'Hospital Active'}
+              </span>
+              {onLogoutHospital && (
+                <button
+                  onClick={onLogoutHospital}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
+                  title="Exit Hospital Session"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Exit</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {currentRole === 'admin' && isAdminLoggedIn && (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs">
+              <span className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800 hidden sm:inline">
+                {adminOfficerName || 'National Admin'}
+              </span>
+              {onLogoutAdmin && (
+                <button
+                  onClick={onLogoutAdmin}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
+                  title="Lock Governance Session"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden sm:inline">Lock</span>
                 </button>
               )}
             </div>

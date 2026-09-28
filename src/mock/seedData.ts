@@ -4,12 +4,13 @@ export const INITIAL_PERSONAS: PatientPersona[] = [
   {
     id: 'persona-diabetic',
     name: 'Rajesh Kumar',
-    mediId: '91-2345-6789-0123',
+    mediId: '91-4827-6153-2043',
+    vaultId: 'VLT-8F29A31B72C1',
     dob: '1974-05-14',
     gender: 'Male',
     phone: '+91 98765 43210',
     email: 'rajesh.kumar@example.com',
-    dnaSaltedHash: '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f',
+    dnaSaltedHash: '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8fa1b2c3d4e5f6a7b8c9d0e1f2',
     emergencyInfo: {
       bloodGroup: 'B+',
       allergies: ['Penicillin', 'Dust Mites'],
@@ -32,12 +33,13 @@ export const INITIAL_PERSONAS: PatientPersona[] = [
   {
     id: 'persona-healthy',
     name: 'Ananya Sharma',
-    mediId: '91-8765-4321-9876',
+    mediId: '91-5454-3297-1210',
+    vaultId: 'VLT-C14B6C917DF5',
     dob: '2001-09-22',
     gender: 'Female',
     phone: '+91 91234 56789',
     email: 'ananya.sharma@example.com',
-    dnaSaltedHash: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b',
+    dnaSaltedHash: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0ba1b2c3d4e5f6a7b8c9d0e1f2',
     emergencyInfo: {
       bloodGroup: 'O+',
       allergies: ['Peanuts'],
@@ -58,7 +60,8 @@ export const INITIAL_PERSONAS: PatientPersona[] = [
   {
     id: 'persona-hypertensive',
     name: 'Vikram Malhotra',
-    mediId: '91-5544-3322-1100',
+    mediId: '91-6828-7814-5965',
+    vaultId: 'VLT-34D639BEDC80',
     dob: '1966-11-03',
     gender: 'Male',
     phone: '+91 99887 76655',

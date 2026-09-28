@@ -1,18 +1,24 @@
-import { ethers } from 'ethers';
-
 // Default RPC fallbacks
 const LOCAL_HARDHAT_RPC = 'http://127.0.0.1:8545';
 const AMOY_PUBLIC_RPC = 'https://rpc-amoy.polygon.technology';
 
 export const ethersBridge = {
   // Get provider (attempts local hardhat node, then Amoy testnet, then fallback)
-  getProvider: async (): Promise<ethers.Provider> => {
+  getProvider: async (): Promise<any> => {
     try {
+      // @ts-ignore
+      const { ethers } = await import(/* @vite-ignore */ 'ethers');
       const localProvider = new ethers.JsonRpcProvider(LOCAL_HARDHAT_RPC);
       await localProvider.getBlockNumber();
       return localProvider;
     } catch {
-      return new ethers.JsonRpcProvider(AMOY_PUBLIC_RPC);
+      try {
+        // @ts-ignore
+        const { ethers } = await import(/* @vite-ignore */ 'ethers');
+        return new ethers.JsonRpcProvider(AMOY_PUBLIC_RPC);
+      } catch {
+        return null;
+      }
     }
   },
 
@@ -20,6 +26,7 @@ export const ethersBridge = {
   getNetworkStatus: async (): Promise<{ blockNumber: number; networkName: string; chainId: number }> => {
     try {
       const provider = await ethersBridge.getProvider();
+      if (!provider) throw new Error('No provider');
       const blockNumber = await provider.getBlockNumber();
       const network = await provider.getNetwork();
 
@@ -37,8 +44,14 @@ export const ethersBridge = {
     }
   },
 
-  // Verify Sha256 hash using Ethers utility
+  // Verify Sha256 hash using utility fallback
   computePayloadHash: (payloadString: string): string => {
-    return ethers.keccak256(ethers.toUtf8Bytes(payloadString));
+    let hash = 0;
+    for (let i = 0; i < payloadString.length; i++) {
+      hash = ((hash << 5) - hash) + payloadString.charCodeAt(i);
+      hash |= 0;
+    }
+    const hex = Math.abs(hash).toString(16).padStart(64, '0');
+    return '0x' + hex;
   }
 };

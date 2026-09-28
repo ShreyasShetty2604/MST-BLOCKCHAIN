@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert, Building2, Plus, Trash2, Activity, ShieldCheck, Flag,
-  TrendingUp, CheckCircle2, X, AlertTriangle
+  TrendingUp, CheckCircle2, X, AlertTriangle, Check, XCircle, Clock
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Hospital, SystemStats, AuditLog } from '../mock/types';
 import { mockApi } from '../mock/api';
 import { truncateHash } from '../lib/formatters';
+import { Lock } from 'lucide-react';
+import { AdminOfficerSession } from './AdminLandingPage';
 
 interface AdminPortalPageProps {
   onShowToast: (msg: string) => void;
+  session?: AdminOfficerSession | null;
+  onLogout?: () => void;
 }
 
-export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast }) => {
+export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast, session, onLogout }) => {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [flaggedLogs, setFlaggedLogs] = useState<AuditLog[]>([]);
@@ -54,6 +58,30 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast })
     }
   };
 
+  const handleApproveHospitalRequest = async (id: string, name: string) => {
+    try {
+      const res = await mockApi.approveHospitalRegistration(id);
+      if (res) {
+        onShowToast(`✓ Approved registration for ${name}! Granted smart contract issuing rights.`);
+        await loadData();
+      }
+    } catch (err: any) {
+      onShowToast('Approval error: ' + (err?.message || 'Error'));
+    }
+  };
+
+  const handleDeclineHospitalRequest = async (id: string, name: string) => {
+    if (confirm(`Decline and reject hospital registration application for ${name}?`)) {
+      try {
+        await mockApi.rejectHospitalRegistration(id);
+        onShowToast(`Application declined for ${name}`);
+        await loadData();
+      } catch (err: any) {
+        onShowToast('Decline error: ' + (err?.message || 'Error'));
+      }
+    }
+  };
+
   const handleRemoveHospital = async (id: string, name: string) => {
     if (confirm(`Revoke approval for ${name}?`)) {
       await mockApi.removeHospital(id);
@@ -71,15 +99,33 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast })
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               MediVault System Admin & Network Telemetry
             </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-mono">
+              Level 5 Authority
+            </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Global governance registry for healthcare institutions, smart contract anchors, and misuse reviews.
+          <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+            <span>{session?.officerName ? `${session.officerName} (${session.designation})` : 'National Health Authority'}</span>
+            <span>•</span>
+            <span className="font-mono">{session?.badgeNumber || 'GOV-NDHM-9014'}</span>
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-xs shadow-sm">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Polygon Amoy Testnet (Chain ID: 80002)</span>
+        <div className="flex items-center gap-3">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-xs shadow-sm">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Polygon Amoy (80002)</span>
+          </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Lock Governance Session"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock Session</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -198,13 +244,96 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast })
         </div>
       )}
 
+      {/* Pending Hospital Applications Section */}
+      {hospitals.some((h) => h.status === 'Pending') && (
+        <div className="p-6 rounded-3xl bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-900/60 shadow-card space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-amber-900 dark:text-amber-200 text-base">
+                  Pending Healthcare Facility Accreditation Applications ({hospitals.filter((h) => h.status === 'Pending').length})
+                </h3>
+                <p className="text-xs text-amber-700/80 dark:text-amber-400">
+                  New institutions requesting medical record issuance authority on Polygon Amoy. Review and Approve or Decline.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {hospitals.filter((h) => h.status === 'Pending').map((pendingHosp) => (
+              <div
+                key={pendingHosp.id}
+                className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 shadow-sm space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                      {pendingHosp.name}
+                    </h4>
+                    <span className="text-[11px] font-mono text-slate-500">
+                      Dept: {pendingHosp.department || 'General Medicine'} • Requested by: {pendingHosp.requestedBy || 'Medical Staff'}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    Pending Admin Approval
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1 font-mono pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span>License / Registration:</span>
+                    <span className="text-slate-900 dark:text-white font-bold">{pendingHosp.licenseNumber || 'MCI-REG-VALIDATED'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Accreditation:</span>
+                    <span className="text-teal-600 dark:text-teal-400 font-sans font-semibold">{pendingHosp.accreditation || 'NABH State Accredited'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Wallet:</span>
+                    <span className="text-indigo-400">{truncateHash(pendingHosp.walletAddress, 8, 6)}</span>
+                  </div>
+                  {pendingHosp.contactEmail && (
+                    <div className="flex items-center justify-between">
+                      <span>Contact Email:</span>
+                      <span className="text-slate-500">{pendingHosp.contactEmail}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    onClick={() => handleApproveHospitalRequest(pendingHosp.id, pendingHosp.name)}
+                    className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Approve Hospital</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDeclineHospitalRequest(pendingHosp.id, pendingHosp.name)}
+                    className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Decline Application</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Hospital Registry Table */}
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
               <Building2 className="w-5 h-5 text-teal-600" />
-              <span>Approved Healthcare Provider Registry ({hospitals.length})</span>
+              <span>Approved Healthcare Provider Registry ({hospitals.filter((h) => h.status === 'Approved').length})</span>
             </h3>
             <p className="text-xs text-slate-500">Institutions authorized to issue signed records and request patient consent.</p>
           </div>
@@ -231,7 +360,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast })
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {hospitals.map((hosp) => (
+              {hospitals.filter((h) => h.status === 'Approved').map((hosp) => (
                 <tr key={hosp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
                     {hosp.name}

@@ -20,11 +20,29 @@ export interface PatientPersona {
   email: string;
   avatarUrl?: string;
   dnaSaltedHash?: string;
+  vaultId?: string;
   walletAddress?: string;
   emergencyInfo: EmergencyInfo;
   verifiedRecordCount: number;
   activeConsentCount: number;
   lastAccessTime: string;
+  biometricRegistered?: boolean;
+  biometricCredentialId?: string;
+  biometricEnrolledAt?: string;
+}
+
+export interface IdentitySecurityState {
+  vaultId: string;
+  mediId: string;
+  mediIdHash: string;
+  isMediIdValid: boolean;
+  fingerprintProtected: boolean;
+  fingerprintHash: string;
+  dnaProtected: boolean;
+  dnaReferenceId: string;
+  dnaHash: string;
+  encryptionActive: 'AES-256-GCM';
+  blockchainIntegrity: 'VERIFIED' | 'TAMPERED' | 'CHECKING';
 }
 
 export interface RecordVersionDiff {
@@ -93,6 +111,12 @@ export interface Hospital {
   trustScore: number;
   emergencyAccessCount: number;
   registeredAt: string;
+  facilityCode?: string;
+  department?: string;
+  accreditation?: string;
+  licenseNumber?: string;
+  contactEmail?: string;
+  requestedBy?: string;
 }
 
 export interface CheckupReminder {
