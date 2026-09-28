@@ -211,9 +211,33 @@ export const mockApi = {
   loginWithBiometric: async (credentialId: string): Promise<PatientPersona | null> => {
     await delay(500);
     const match = read<BiometricCredential[]>(KEYS.BIOMETRICS, []).find((b) => b.credentialId === credentialId);
-    if (!match || !readPersonas().some((p) => p.id === match.personaId)) return null;
-    const persona = startSession(match.personaId, 'biometric');
-    logAccess(persona.id, `Vault unlocked with registered fingerprint (${match.label})`);
+    let personaId = match?.personaId;
+    if (!personaId) {
+      // Also check if any persona has matching biometricCredentialId directly
+      const pMatch = readPersonas().find((p) => p.biometricCredentialId === credentialId);
+      if (pMatch) personaId = pMatch.id;
+    }
+    if (!personaId || !readPersonas().some((p) => p.id === personaId)) return null;
+    const persona = startSession(personaId, 'biometric');
+    logAccess(persona.id, `Vault unlocked with registered fingerprint (${match?.label || 'Hardware Biometric'})`);
+    return persona;
+  },
+
+  // Direct login via MediID
+  loginWithMediId: async (mediIdOrPhone: string): Promise<PatientPersona> => {
+    await delay(400);
+    const clean = mediIdOrPhone.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
+    const personas = readPersonas();
+    const match = personas.find(
+      (p) =>
+        p.id.toLowerCase() === clean ||
+        p.mediId.toLowerCase() === clean ||
+        p.mediId.replace(/-/g, '').toLowerCase().includes(clean.replace(/-/g, '')) ||
+        (p.phone && p.phone.replace(/[^0-9]/g, '').includes(clean.replace(/[^0-9]/g, '')))
+    );
+    if (!match) throw new Error('No patient vault found matching this MediID or Phone number');
+    const persona = startSession(match.id, 'id-request');
+    logAccess(persona.id, `Vault unlocked via verified MediID/Phone (${match.mediId})`);
     return persona;
   },
 
@@ -582,7 +606,9 @@ export const mockApi = {
         p.id.toLowerCase() === cleanQuery ||
         (p.vaultId && p.vaultId.toLowerCase() === cleanQuery) ||
         p.mediId.replace(/-/g, '').toLowerCase().includes(cleanQuery.replace(/-/g, '')) ||
-        p.mediId.toLowerCase() === cleanQuery
+        p.mediId.toLowerCase() === cleanQuery ||
+        (p.dnaSaltedHash && p.dnaSaltedHash.toLowerCase() === cleanQuery) ||
+        (p.dnaSaltedHash && p.dnaSaltedHash.toLowerCase().includes(cleanQuery))
     );
     if (match) return match;
 
@@ -603,6 +629,7 @@ export const mockApi = {
             gender: 'Unspecified',
             phone: v.phoneMasked || '+91 98*** **000',
             email: `${v.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+            dnaSaltedHash: v.dnaHash || '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8fa1b2c3d4e5f6a7b8c9d0e1f2',
             emergencyInfo: {
               bloodGroup: v.bloodGroup,
               allergies: v.allergies,
@@ -623,6 +650,20 @@ export const mockApi = {
       // offline fallback
     }
 
+    return null;
+  },
+
+  getPatientByFingerprint: async (credentialId: string): Promise<PatientPersona | null> => {
+    await delay(300);
+    const prints = read<BiometricCredential[]>(KEYS.BIOMETRICS, []);
+    const match = prints.find((b) => b.credentialId === credentialId);
+    if (match) {
+      const persona = readPersonas().find((p) => p.id === match.personaId);
+      if (persona) return persona;
+    }
+    // Also check if any persona has biometricCredentialId directly
+    const directMatch = readPersonas().find((p) => p.biometricCredentialId === credentialId);
+    if (directMatch) return directMatch;
     return null;
   },
 
@@ -1024,21 +1065,87 @@ export const mockApi = {
     return read<Hospital[]>(KEYS.HOSPITALS, []);
   },
 
-  addHospital: async (input: { name: string; walletAddress: string }): Promise<Hospital> => {
+  addHospital: async (input: {
+    name: string;
+    walletAddress: string;
+    status?: 'Approved' | 'Pending' | 'Suspended';
+    facilityCode?: string;
+    department?: string;
+    accreditation?: string;
+    licenseNumber?: string;
+    contactEmail?: string;
+    requestedBy?: string;
+  }): Promise<Hospital> => {
     await delay(600);
     const hospitals: Hospital[] = read<Hospital[]>(KEYS.HOSPITALS, []);
     const newHosp: Hospital = {
       id: `hosp-${Date.now()}`,
       name: input.name,
       walletAddress: input.walletAddress,
-      status: 'Approved',
+      status: input.status || 'Approved',
       trustScore: 100.0,
       emergencyAccessCount: 0,
-      registeredAt: new Date().toISOString().split('T')[0]
+      registeredAt: new Date().toISOString().split('T')[0],
+      facilityCode: input.facilityCode || `HOSP-REG-${Math.floor(100 + Math.random() * 900)}`,
+      department: input.department || 'General Medicine & Triage',
+      accreditation: input.accreditation || 'NABH State Accredited',
+      licenseNumber: input.licenseNumber || `MCI-REG-${Math.floor(100000 + Math.random() * 900000)}`,
+      contactEmail: input.contactEmail,
+      requestedBy: input.requestedBy
     };
     hospitals.unshift(newHosp);
     write(KEYS.HOSPITALS, hospitals);
     return newHosp;
+  },
+
+  requestHospitalRegistration: async (input: {
+    facilityName: string;
+    department: string;
+    staffName: string;
+    contactEmail: string;
+    licenseNumber: string;
+    accreditation: string;
+    walletAddress?: string;
+  }): Promise<Hospital> => {
+    await delay(700);
+    const hospitals: Hospital[] = read<Hospital[]>(KEYS.HOSPITALS, []);
+    const newReq: Hospital = {
+      id: `hosp-req-${Date.now()}`,
+      name: input.facilityName,
+      walletAddress: input.walletAddress || deriveWalletAddress(input.facilityName + Date.now()),
+      status: 'Pending',
+      trustScore: 85.0,
+      emergencyAccessCount: 0,
+      registeredAt: new Date().toISOString().split('T')[0],
+      facilityCode: `HOSP-PEND-${Math.floor(100 + Math.random() * 900)}`,
+      department: input.department,
+      accreditation: input.accreditation,
+      licenseNumber: input.licenseNumber,
+      contactEmail: input.contactEmail,
+      requestedBy: input.staffName
+    };
+    hospitals.unshift(newReq);
+    write(KEYS.HOSPITALS, hospitals);
+    return newReq;
+  },
+
+  approveHospitalRegistration: async (hospitalId: string): Promise<Hospital | null> => {
+    await delay(500);
+    const hospitals: Hospital[] = read<Hospital[]>(KEYS.HOSPITALS, []);
+    const target = hospitals.find((h) => h.id === hospitalId);
+    if (!target) return null;
+    target.status = 'Approved';
+    target.trustScore = 98.5;
+    write(KEYS.HOSPITALS, hospitals);
+    return target;
+  },
+
+  rejectHospitalRegistration: async (hospitalId: string): Promise<boolean> => {
+    await delay(500);
+    const hospitals: Hospital[] = read<Hospital[]>(KEYS.HOSPITALS, []);
+    const filtered = hospitals.filter((h) => h.id !== hospitalId);
+    write(KEYS.HOSPITALS, filtered);
+    return true;
   },
 
   removeHospital: async (id: string): Promise<void> => {

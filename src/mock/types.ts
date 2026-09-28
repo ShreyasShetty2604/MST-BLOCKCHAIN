@@ -111,6 +111,12 @@ export interface Hospital {
   trustScore: number;
   emergencyAccessCount: number;
   registeredAt: string;
+  facilityCode?: string;
+  department?: string;
+  accreditation?: string;
+  licenseNumber?: string;
+  contactEmail?: string;
+  requestedBy?: string;
 }
 
 export interface CheckupReminder {

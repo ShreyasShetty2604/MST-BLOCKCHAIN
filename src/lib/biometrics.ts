@@ -72,16 +72,24 @@ export async function registerDeviceBiometric(params: {
   userEmail?: string;
   mediId?: string;
   vaultId?: string;
+  forceFreshRegistration?: boolean;
+  enrollmentMode?: 'hardware' | 'virtual' | 'auto';
+  fingerLabel?: string;
+  customCredentialId?: string;
 }): Promise<BiometricRegistrationResult> {
-  const hasPlatform = await isPlatformBiometricAvailable();
+  const mode = params.enrollmentMode || 'auto';
 
-  if (hasPlatform && window.navigator?.credentials) {
-    try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+  // If explicit virtual mode was chosen, skip WebAuthn hardware dialog entirely to prevent macOS Keychain collisions
+  if (mode !== 'virtual') {
+    const hasPlatform = await isPlatformBiometricAvailable();
 
-      // Deterministic or random user ID
-      const userIdBytes = new TextEncoder().encode(params.mediId || params.userEmail || `medivault-${Date.now()}`);
+    if (hasPlatform && window.navigator?.credentials) {
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        // Deterministic or random user ID
+        const userIdBytes = new TextEncoder().encode(params.mediId || params.userEmail || `medivault-${Date.now()}`);
 
       const createOptions: CredentialCreationOptions = {
         publicKey: {
@@ -160,11 +168,18 @@ export async function registerDeviceBiometric(params: {
       console.warn('[WebAuthn] Hardware registration note:', err?.message || err);
     }
   }
+}
 
-  // Fallback: Secure simulated enclave enrollment if platform hardware is unavailable
-  const fallbackId = `ENCLAVE-FP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+  // Virtual Scanner or Fallback Enclave enrollment:
+  // Generates a unique cryptographic biometric credential ID without calling macOS Keychain / Passwords
+  const credId = params.customCredentialId || `VIRT-FP-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+  const label = params.fingerLabel || 'Virtual Triage Fingerprint Scanner';
+
   try {
-    localStorage.setItem('medivault_device_credential_id', fallbackId);
+    localStorage.setItem('medivault_device_credential_id', credId);
+    if (params.mediId) {
+      localStorage.setItem(`medivault_cred_${params.mediId}`, credId);
+    }
   } catch {}
 
   if (params.vaultId || params.mediId) {
@@ -174,9 +189,9 @@ export async function registerDeviceBiometric(params: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vaultId: params.vaultId || params.mediId,
-          passkeyCredentialId: fallbackId,
-          deviceType: 'Secure Simulated Enclave',
-          minutiaeTemplate: `SIMULATED-TEMPLATE-${fallbackId}`
+          passkeyCredentialId: credId,
+          deviceType: label,
+          minutiaeTemplate: `SIMULATED-TEMPLATE-${credId}`
         })
       });
     } catch {}
@@ -184,7 +199,7 @@ export async function registerDeviceBiometric(params: {
 
   return {
     success: true,
-    credentialId: fallbackId,
+    credentialId: credId,
     authenticatorType: 'simulated-enclave'
   };
 }

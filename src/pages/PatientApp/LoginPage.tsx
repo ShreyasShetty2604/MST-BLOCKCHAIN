@@ -71,11 +71,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       const res = await scanDeviceBiometric();
 
       if (res.success) {
-        const currentPatient = await mockApi.getCurrentPatient();
-        if (currentPatient) {
-          onShowToast(`✓ Touch ID Biometric authentication verified for ${currentPatient.name}!`);
-          onLoginSuccess(currentPatient);
+        let patient = res.credentialId ? await mockApi.loginWithBiometric(res.credentialId) : null;
+        if (!patient) {
+          patient = await mockApi.getCurrentPatient();
+        }
+
+        if (patient) {
+          onShowToast(`✓ Touch ID Biometric authentication verified for ${patient.name}!`);
+          onLoginSuccess(patient);
         } else {
+          // Unrecognized fingerprint
           setShowNewFingerprintPrompt(true);
         }
       } else if (res.cancelled) {
@@ -95,20 +100,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     if (!inputMediId) return;
 
     setIsSendingRequest(true);
-    setTimeout(async () => {
-      const patient = await mockApi.getPatientById(inputMediId);
+    try {
+      const patient = await mockApi.loginWithMediId(inputMediId);
       setIsSendingRequest(false);
-
-      if (patient) {
-        setRequestSent(true);
-        onShowToast(`Login access request approved for ${patient.name}!`);
-        setTimeout(() => {
-          onLoginSuccess(patient);
-        }, 1000);
-      } else {
-        onShowToast('MediID not found. Please verify 14-digit MediID.');
-      }
-    }, 1200);
+      setRequestSent(true);
+      onShowToast(`✓ MediID Verified! Unlocking Vault for ${patient.name}...`);
+      setTimeout(() => {
+        onLoginSuccess(patient);
+      }, 700);
+    } catch (err: any) {
+      setIsSendingRequest(false);
+      onShowToast(err.message || 'MediID not found. Please verify 14-digit MediID or phone.');
+    }
   };
 
   return (
@@ -170,11 +173,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
               loginMethod === 'biometric'
                 ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Fingerprint className="w-4 h-4" />
-            <span>Biometric Passkey</span>
+            <span>Fingerprint Passkey</span>
           </button>
 
           <button
@@ -182,11 +185,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
               loginMethod === 'id-request'
                 ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Send className="w-4 h-4" />
-            <span>Request ID Access</span>
+            <KeyRound className="w-4 h-4" />
+            <span>Enter MediID</span>
           </button>
         </div>
 
@@ -205,27 +208,100 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </div>
 
             <div className="space-y-3">
-              <button
-                onClick={() => handleBiometricScan(false)}
-                disabled={isScanning}
-                className="w-full py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-transform active:scale-95"
-              >
-                {isScanning ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying Hardware Passkey...</span>
-                  </>
-                ) : (
-                  <>
-                    <Fingerprint className="w-4 h-4" />
-                    <span>Scan Fingerprint to Unlock Vault</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleBiometricScan(false)}
+                  disabled={isScanning}
+                  className="flex-1 py-3.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-transform active:scale-95 cursor-pointer"
+                >
+                  {isScanning ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Verifying Passkey...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Fingerprint className="w-4 h-4" />
+                      <span>Scan Fingerprint / Touch ID</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Quick simulated finger unlock presets for multi-patient testing */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-left space-y-1.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Quick Desk Scanner Profiles (Emulated Sensors)
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsScanning(true);
+                      onShowToast('Scanning Right Thumb (Rajesh Kumar)...');
+                      await new Promise((r) => setTimeout(r, 450));
+                      const patient = await mockApi.loginWithBiometric('sim-right-thumb');
+                      setIsScanning(false);
+                      if (patient) {
+                        onShowToast(`✓ Verified Right Thumb for ${patient.name}!`);
+                        onLoginSuccess(patient);
+                      } else {
+                        setShowNewFingerprintPrompt(true);
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-teal-500 text-center transition-all cursor-pointer"
+                  >
+                    <span className="block text-[11px] font-bold text-slate-800 dark:text-slate-200">Right Thumb</span>
+                    <span className="block text-[9px] text-teal-600 dark:text-teal-400">Rajesh K.</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsScanning(true);
+                      onShowToast('Scanning Left Thumb (Ananya Sharma)...');
+                      await new Promise((r) => setTimeout(r, 450));
+                      const patient = await mockApi.loginWithBiometric('sim-left-thumb');
+                      setIsScanning(false);
+                      if (patient) {
+                        onShowToast(`✓ Verified Left Thumb for ${patient.name}!`);
+                        onLoginSuccess(patient);
+                      } else {
+                        setShowNewFingerprintPrompt(true);
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-teal-500 text-center transition-all cursor-pointer"
+                  >
+                    <span className="block text-[11px] font-bold text-slate-800 dark:text-slate-200">Left Thumb</span>
+                    <span className="block text-[9px] text-teal-600 dark:text-teal-400">Ananya S.</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsScanning(true);
+                      onShowToast('Scanning Right Index (Vikram Malhotra)...');
+                      await new Promise((r) => setTimeout(r, 450));
+                      const patient = await mockApi.loginWithBiometric('sim-right-index');
+                      setIsScanning(false);
+                      if (patient) {
+                        onShowToast(`✓ Verified Right Index for ${patient.name}!`);
+                        onLoginSuccess(patient);
+                      } else {
+                        setShowNewFingerprintPrompt(true);
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-teal-500 text-center transition-all cursor-pointer"
+                  >
+                    <span className="block text-[11px] font-bold text-slate-800 dark:text-slate-200">Right Index</span>
+                    <span className="block text-[9px] text-teal-600 dark:text-teal-400">Vikram M.</span>
+                  </button>
+                </div>
+              </div>
 
               <button
                 onClick={() => handleBiometricScan(true)}
-                className="text-xs text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 underline block mx-auto"
+                className="text-xs text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 underline block mx-auto pt-1 cursor-pointer"
               >
                 Test with Unrecognized Fingerprint (Triggers New User Prompt)
               </button>
@@ -238,18 +314,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <form onSubmit={handleSendIdRequest} className="space-y-4 pt-2 text-left text-xs animate-fade-in">
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Enter 14-Digit MediID or Phone Number
+                Enter 14-Digit MediID or Registered Phone
               </label>
               <input
                 type="text"
-                placeholder="e.g. 91-2345-6789-0123"
+                placeholder="e.g. 91-2345-6789-0123 or +91 98765 43210"
                 value={inputMediId}
                 onChange={(e) => setInputMediId(e.target.value)}
                 required
                 className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
               />
               <p className="text-[11px] text-slate-500 mt-1">
-                A login access grant notification will be dispatched to your registered device.
+                Direct lookup unlocks your cryptographic health records and dashboard.
               </p>
             </div>
 
@@ -261,7 +337,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               {isSendingRequest ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Dispatching Login Request...</span>
+                  <span>Verifying MediID on Chain...</span>
                 </>
               ) : requestSent ? (
                 <>
@@ -270,13 +346,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
-                  <span>Send Login Access Request</span>
+                  <KeyRound className="w-4 h-4" />
+                  <span>Login with MediID</span>
                 </>
               )}
             </button>
           </form>
         )}
+
+        {/* Don't have an ID? Create New Vault Action */}
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+          <span className="text-slate-500">Don't have a MediID yet?</span>
+          <button
+            type="button"
+            onClick={onGoToOnboarding}
+            className="font-bold text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-1.5"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Create New MediID & Vault</span>
+          </button>
+        </div>
       </div>
 
       {/* NEW FINGERPRINT MODAL PROMPT */}

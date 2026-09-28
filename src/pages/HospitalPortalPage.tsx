@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   Wallet, Building2, Search, QrCode, ShieldAlert, CheckCircle2, AlertTriangle,
-  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock, UserPlus, Fingerprint, RefreshCw
+  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock, UserPlus, Fingerprint, RefreshCw, Dna
 } from 'lucide-react';
 import { PatientPersona, MedicalRecord } from '../mock/types';
 import { ChainBadge } from '../components/ChainBadge';
 import { TimelineItem } from '../components/TimelineItem';
 import { mockApi } from '../mock/api';
-import { registerDeviceBiometric } from '../lib/biometrics';
+import { registerDeviceBiometric, scanDeviceBiometric } from '../lib/biometrics';
 import { CameraQrScannerModal } from '../components/CameraQrScannerModal';
 import { HospitalStaffSession } from './HospitalLandingPage';
 
@@ -56,18 +56,38 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
   const [regBiometricCredId, setRegBiometricCredId] = useState<string>('');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const handleScanHospitalPatientBiometrics = async () => {
+  // Triage Lookup Mode states: mediId vs fingerprint vs dna
+  const [lookupMode, setLookupMode] = useState<'mediId' | 'fingerprint' | 'dna'>('mediId');
+  const [dnaInputCode, setDnaInputCode] = useState('0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8fa1b2c3d4e5f6a7b8c9d0e1f2');
+  const [isScanningFingerprintTriage, setIsScanningFingerprintTriage] = useState(false);
+
+  const [regBioMode, setRegBioMode] = useState<'virtual' | 'hardware'>('virtual');
+
+  const handleScanHospitalPatientBiometrics = async (modeOverride?: 'virtual' | 'hardware') => {
+    const chosenMode = modeOverride || regBioMode;
     setRegBiometricScanning(true);
     try {
-      onShowToast('Prompting device hardware fingerprint scanner for patient...');
+      if (chosenMode === 'hardware') {
+        onShowToast('Prompting device hardware fingerprint scanner for patient...');
+      } else {
+        onShowToast('Scanning patient fingerprint on hospital desk scanner...');
+      }
       const res = await registerDeviceBiometric({
         userName: regName || 'Walk-in Patient',
-        userEmail: regPhone || '+91 98450 11223'
+        userEmail: regPhone || '+91 98450 11223',
+        forceFreshRegistration: true,
+        enrollmentMode: chosenMode,
+        fingerLabel: `Hospital Patient ${regName || 'Walk-in'} Fingerprint`,
+        customCredentialId: chosenMode === 'virtual' ? `HOSP-FP-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}` : undefined
       });
       if (res.success) {
         setRegBiometricEnrolled(true);
         if (res.credentialId) setRegBiometricCredId(res.credentialId);
-        onShowToast('✓ Patient biometric template enrolled via Hardware Authenticator!');
+        onShowToast(
+          res.authenticatorType === 'platform-hardware'
+            ? '✓ Patient biometric enrolled via Hardware Authenticator!'
+            : '✓ Patient biometric template captured via Hospital Triage Scanner!'
+        );
       } else if (res.cancelled) {
         onShowToast('Biometric scan prompt cancelled.');
       } else {
@@ -106,11 +126,91 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
       return;
     }
     setPatient(found);
-    setAccessState('none');
+    setAccessState('approved');
+    setApprovedTier('Tier 2');
     setShowQrModal(false);
     const patientRecs = await mockApi.getRecords('All', found.id);
     setRecords(patientRecs);
     onShowToast(`Loaded patient profile: ${found.name} (MediID: ${found.mediId})`);
+  };
+
+  // Scan patient fingerprint directly for triage lookup
+  const [triageFingerChoice, setTriageFingerChoice] = useState<string>('hardware');
+
+  const handleScanPatientFingerprintLookup = async (fingerOverride?: string) => {
+    setIsScanningFingerprintTriage(true);
+    try {
+      const mode = fingerOverride || triageFingerChoice;
+
+      let credId: string | undefined;
+      if (mode === 'hardware') {
+        onShowToast('Place patient finger on scanner (Touch ID / Hardware FIDO2)...');
+        const res = await scanDeviceBiometric();
+        if (!res.success) {
+          if (res.cancelled) {
+            onShowToast('Fingerprint scan cancelled.');
+          } else {
+            onShowToast(res.error || 'Fingerprint scan failed.');
+          }
+          return;
+        }
+        credId = res.credentialId;
+      } else if (mode === 'unregistered-test') {
+        // Explicit unregistered fingerprint test
+        onShowToast('Scanning unrecognized patient finger on optical reader...');
+        await new Promise((r) => setTimeout(r, 600));
+        credId = `UNKNOWN-FP-${Math.floor(1000 + Math.random() * 9000)}`;
+      } else {
+        // Virtual preset finger (e.g. sim-right-thumb, sim-left-thumb, sim-right-index)
+        onShowToast(`Scanning patient finger template (${mode})...`);
+        await new Promise((r) => setTimeout(r, 500));
+        credId = mode;
+      }
+
+      // Check if fingerprint matches an enrolled patient vault
+      let matchedPatient = credId ? await mockApi.getPatientByFingerprint(credId) : null;
+
+      if (matchedPatient) {
+        setPatient(matchedPatient);
+        setAccessState('approved');
+        setApprovedTier('Tier 2');
+        const patientRecs = await mockApi.getRecords('All', matchedPatient.id);
+        setRecords(patientRecs);
+        onShowToast(`✓ Fingerprint Matched! Opened Vault for ${matchedPatient.name} (MediID: ${matchedPatient.mediId})`);
+      } else {
+        // Fingerprint has NO record in database -> Redirect to New Vault Registration with biometric attached!
+        onShowToast('No record found for this fingerprint! Redirecting to New Patient Registration...');
+        if (credId) {
+          setRegBiometricCredId(credId);
+          setRegBiometricEnrolled(true);
+        }
+        setShowRegisterModal(true);
+      }
+    } catch (err: any) {
+      onShowToast('Fingerprint lookup error: ' + (err?.message || 'Error'));
+    } finally {
+      setIsScanningFingerprintTriage(false);
+    }
+  };
+
+  // DNA Sample Code search
+  const handleSearchByDna = async () => {
+    const code = dnaInputCode.trim();
+    if (!code) {
+      onShowToast('Please enter a DNA salted hash or lab sample reference');
+      return;
+    }
+    const found = await mockApi.getPatientById(code);
+    if (!found) {
+      onShowToast(`No genomic vault found for DNA code "${code.slice(0, 16)}...". You can register them below.`);
+      return;
+    }
+    setPatient(found);
+    setAccessState('approved');
+    setApprovedTier('Tier 2');
+    const patientRecs = await mockApi.getRecords('All', found.id);
+    setRecords(patientRecs);
+    onShowToast(`✓ DNA Match Confirmed! Genomic Vault Loaded: ${found.name}`);
   };
 
   const handleHospitalRegisterPatient = async (e: React.FormEvent) => {
@@ -290,51 +390,180 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
         </div>
       </div>
 
-      {/* Search & Patient Lookup Bar */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-          Patient Lookup & Triage
-        </h2>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[280px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-            <input
-              type="text"
-              placeholder="Enter 14-digit MediID (e.g. 91-2345-6789-0123)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearchPatient()}
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
-            />
+      {/* Multi-Modal Patient Lookup & Triage Bar */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-teal-600" />
+              <span>Patient Triage & Vault Access Gateway</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Access patient records via hardware fingerprint scan, 14-digit MediID, or DNA salted hash.
+            </p>
           </div>
 
-          <button
-            onClick={() => handleSearchPatient()}
-            className="px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md"
-          >
-            Lookup MediID
-          </button>
+          {/* Mode Switcher Tabs */}
+          <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+            <button
+              onClick={() => setLookupMode('fingerprint')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                lookupMode === 'fingerprint'
+                  ? 'bg-teal-700 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Fingerprint className="w-3.5 h-3.5" />
+              <span>Scan Fingerprint</span>
+            </button>
 
-          <button
-            onClick={() => setShowQrModal(true)}
-            className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-semibold text-xs border border-slate-300 dark:border-slate-700 flex items-center gap-2"
-          >
-            <QrCode className="w-4 h-4 text-teal-600" />
-            <span>Scan QR</span>
-          </button>
+            <button
+              onClick={() => setLookupMode('mediId')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                lookupMode === 'mediId'
+                  ? 'bg-teal-700 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Enter MediID</span>
+            </button>
 
+            <button
+              onClick={() => setLookupMode('dna')}
+              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                lookupMode === 'dna'
+                  ? 'bg-teal-700 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Dna className="w-3.5 h-3.5" />
+              <span>DNA Sample Code</span>
+            </button>
+          </div>
+        </div>
+
+        {/* MODE 1: FINGERPRINT SCANNER */}
+        {lookupMode === 'fingerprint' && (
+          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-teal-200 dark:border-teal-900/60 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+                <Fingerprint className={`w-6 h-6 ${isScanningFingerprintTriage ? 'animate-pulse text-teal-500' : ''}`} />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  Biometric Fingerprint Scanner (Desk Reader / Touch ID)
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Scan patient fingerprint to instantly locate vault. If unregistered, you will be redirected to create a new vault.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+              <select
+                value={triageFingerChoice}
+                onChange={(e) => setTriageFingerChoice(e.target.value)}
+                className="px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium"
+              >
+                <option value="hardware">Host Touch ID / Windows Hello</option>
+                <option value="unregistered-test">⚠️ Unregistered Finger (Redirects to New Vault)</option>
+                <option value="sim-right-thumb">Virtual Finger: Rajesh Kumar</option>
+                <option value="sim-left-thumb">Virtual Finger: Ananya Sharma</option>
+                <option value="sim-right-index">Virtual Finger: Vikram Malhotra</option>
+              </select>
+
+              <button
+                onClick={() => handleScanPatientFingerprintLookup()}
+                disabled={isScanningFingerprintTriage}
+                className="px-6 py-2.5 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 disabled:opacity-50 transition-all transform hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+              >
+                {isScanningFingerprintTriage ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Scanning Fingerprint...</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4" />
+                    <span>Scan Patient Finger</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODE 2: MEDIID LOOKUP */}
+        {lookupMode === 'mediId' && (
+          <div className="flex flex-wrap items-center gap-3 animate-fade-in">
+            <div className="relative flex-1 min-w-[280px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+              <input
+                type="text"
+                placeholder="Enter 14-digit MediID (e.g. 91-2345-6789-0123)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchPatient()}
+                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              />
+            </div>
+
+            <button
+              onClick={() => handleSearchPatient()}
+              className="px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md"
+            >
+              Lookup MediID
+            </button>
+
+            <button
+              onClick={() => setShowQrModal(true)}
+              className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-semibold text-xs border border-slate-300 dark:border-slate-700 flex items-center gap-2"
+            >
+              <QrCode className="w-4 h-4 text-teal-600" />
+              <span>Scan QR</span>
+            </button>
+          </div>
+        )}
+
+        {/* MODE 3: DNA SAMPLE CODE */}
+        {lookupMode === 'dna' && (
+          <div className="flex flex-wrap items-center gap-3 animate-fade-in">
+            <div className="relative flex-1 min-w-[280px]">
+              <Dna className="w-4 h-4 text-purple-400 absolute left-4 top-3.5" />
+              <input
+                type="text"
+                placeholder="Paste DNA Salted Hash (e.g. 0x8f7a1e3b...) or Lab Reference Code..."
+                value={dnaInputCode}
+                onChange={(e) => setDnaInputCode(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchByDna()}
+                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-purple-300 dark:border-purple-800 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleSearchByDna}
+              className="px-6 py-3 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md flex items-center gap-2"
+            >
+              <Dna className="w-4 h-4" />
+              <span>Fetch DNA Vault</span>
+            </button>
+          </div>
+        )}
+
+        {/* Action Buttons: Register New Patient & Break-Glass */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             onClick={() => setShowRegisterModal(true)}
-            className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
+            className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Register New Patient</span>
+            <span>Register New Patient Vault</span>
           </button>
 
           <button
             onClick={() => setShowBreakGlassModal(true)}
-            className="px-5 py-3 rounded-2xl border-2 border-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 font-black text-xs uppercase tracking-wider flex items-center gap-2 ml-auto shadow-sm"
+            className="px-5 py-2.5 rounded-2xl border-2 border-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm"
           >
             <ShieldAlert className="w-4 h-4 text-rose-600" />
             <span>Emergency Break-Glass</span>
@@ -1005,33 +1234,55 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                   Enrol patient's fingerprint passkey to bind their private vault key to their hardware biometric authenticator.
                 </p>
                 <div className="flex items-center gap-2 pt-1">
+                  <div className="inline-flex p-0.5 rounded-lg bg-indigo-100 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setRegBioMode('virtual')}
+                      className={`px-2 py-1 rounded-md font-semibold transition-all ${
+                        regBioMode === 'virtual'
+                          ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Virtual Scanner
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegBioMode('hardware')}
+                      className={`px-2 py-1 rounded-md font-semibold transition-all ${
+                        regBioMode === 'hardware'
+                          ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Host Touch ID
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={handleScanHospitalPatientBiometrics}
+                    onClick={() => handleScanHospitalPatientBiometrics()}
                     disabled={regBiometricScanning}
                     className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
                     {regBiometricScanning ? (
                       <>
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Prompting Fingerprint Scanner...</span>
+                        <span>Prompting Scanner...</span>
                       </>
                     ) : (
                       <>
                         <Fingerprint className="w-3.5 h-3.5" />
-                        <span>{regBiometricEnrolled ? 'Re-scan Fingerprint' : 'Scan Patient Fingerprint'}</span>
+                        <span>
+                          {regBiometricEnrolled
+                            ? 'Re-scan Fingerprint'
+                            : regBioMode === 'hardware'
+                            ? 'Scan Host Touch ID'
+                            : 'Scan Patient Finger'}
+                        </span>
                       </>
                     )}
                   </button>
-                  {!regBiometricEnrolled && (
-                    <button
-                      type="button"
-                      onClick={() => setRegBiometricEnrolled(true)}
-                      className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
-                    >
-                      Instant simulated enroll
-                    </button>
-                  )}
                 </div>
               </div>
 

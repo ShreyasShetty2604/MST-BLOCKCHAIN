@@ -4,7 +4,7 @@ import {
   Activity, TrendingUp, CheckCircle2, AlertTriangle, Fingerprint,
   RefreshCw, Globe2, FileCode, Users, Cpu, ExternalLink
 } from 'lucide-react';
-import { scanDeviceBiometric } from '../lib/biometrics';
+import { scanDeviceBiometric, registerDeviceBiometric } from '../lib/biometrics';
 
 export interface AdminOfficerSession {
   officerName: string;
@@ -71,15 +71,56 @@ export const AdminLandingPage: React.FC<AdminLandingPageProps> = ({
     setBadgeNumber(prof.badgeNumber);
   };
 
+  const [passkeyEnrolled, setPasskeyEnrolled] = useState(false);
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'create_passkey'>('signin');
+
+  const handleCreateAdminPasskey = async () => {
+    setIsRegisteringPasskey(true);
+    try {
+      onShowToast('Registering new Sovereign Admin Passkey on device hardware enclave...');
+      const res = await registerDeviceBiometric({
+        userName: officerName.trim() || 'Admin Officer',
+        userEmail: badgeNumber.trim() || 'admin-officer@nha.gov.in',
+        forceFreshRegistration: true
+      });
+      if (res.success) {
+        setPasskeyEnrolled(true);
+        // Persist admin passkey binding in localStorage
+        const storedPasskeys = JSON.parse(localStorage.getItem('medivault2_admin_passkeys') || '{}');
+        storedPasskeys[badgeNumber.trim()] = {
+          officerName: officerName.trim(),
+          credentialId: res.credentialId,
+          registeredAt: new Date().toISOString()
+        };
+        localStorage.setItem('medivault2_admin_passkeys', JSON.stringify(storedPasskeys));
+        onShowToast('✓ Sovereign Admin Passkey successfully enrolled on this device!');
+        setAuthMode('signin');
+      } else if (res.cancelled) {
+        onShowToast('Passkey registration prompt cancelled.');
+      } else {
+        onShowToast(res.error || 'Failed to create passkey.');
+      }
+    } catch (err: any) {
+      onShowToast('Passkey enrollment error: ' + (err?.message || 'Error'));
+    } finally {
+      setIsRegisteringPasskey(false);
+    }
+  };
+
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!badgeNumber.trim()) {
+      onShowToast('Please provide your Government Badge / Admin User ID');
+      return;
+    }
     setIsVerifying(true);
 
     try {
-      onShowToast('Requesting Government FIDO2 Hardware Security Key verification...');
+      onShowToast('Prompting Government FIDO2 Hardware Passkey verification...');
       const bioRes = await scanDeviceBiometric();
       if (!bioRes.success) {
-        onShowToast('Hardware Security Key challenge failed.');
+        onShowToast(bioRes.error || 'Hardware Security Key / Passkey challenge failed.');
         setIsVerifying(false);
         return;
       }
@@ -259,6 +300,65 @@ export const AdminLandingPage: React.FC<AdminLandingPageProps> = ({
                 <Lock className="w-5 h-5" />
               </div>
             </div>
+
+            {/* Mode Selector: Sign-in with Passkey vs Create New Admin Passkey */}
+            <div className="p-1 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setAuthMode('signin')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                  authMode === 'signin'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Fingerprint className="w-3.5 h-3.5" />
+                <span>Sign In with Passkey</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAuthMode('create_passkey')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                  authMode === 'create_passkey'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Enroll New Admin Passkey</span>
+              </button>
+            </div>
+
+            {authMode === 'create_passkey' && (
+              <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-900/60 space-y-3 animate-fade-in text-xs">
+                <h4 className="font-extrabold text-white flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-indigo-400" />
+                  <span>Create Hardware Enclave Passkey for Admin ID</span>
+                </h4>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Bind this device's biometric sensor (Touch ID / Windows Hello) to your Admin ID: <strong className="text-indigo-300 font-mono">{badgeNumber}</strong>. You will be able to sign into the Governance Command Center directly.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCreateAdminPasskey}
+                  disabled={isRegisteringPasskey}
+                  className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                >
+                  {isRegisteringPasskey ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Prompting Hardware Sensor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Fingerprint className="w-3.5 h-3.5" />
+                      <span>Enroll Device Passkey Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
               {/* Active Officer Identity Banner */}

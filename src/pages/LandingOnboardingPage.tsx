@@ -26,18 +26,20 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   const [step, setStep] = useState<number>(1);
 
   // Form states
-  const [name, setName] = useState('Rajesh Kumar');
-  const [dob, setDob] = useState('1974-05-14');
-  const [gender, setGender] = useState('Male');
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [bloodGroup, setBloodGroup] = useState('B+');
-  const [allergies, setAllergies] = useState('Penicillin');
-  const [emergencyContactName, setEmergencyContactName] = useState('Sunita Kumar');
-  const [emergencyContactPhone, setEmergencyContactPhone] = useState('+91 98765 43211');
-  const [otp, setOtp] = useState(['5', '8', '2', '0', '1', '9']);
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('1995-06-20');
+  const [gender, setGender] = useState('Female');
+  const [phone, setPhone] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('O+');
+  const [allergies, setAllergies] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [otp, setOtp] = useState(['6', '2', '9', '1', '0', '4']);
   const [isScanningBiometrics, setIsScanningBiometrics] = useState(false);
   const [biometricsDone, setBiometricsDone] = useState(false);
   const [biometricType, setBiometricType] = useState<'platform-hardware' | 'simulated-enclave' | null>(null);
+  const [biometricEnrollMode, setBiometricEnrollMode] = useState<'hardware' | 'virtual'>('virtual');
+  const [selectedVirtualFinger, setSelectedVirtualFinger] = useState<string>('unique-fresh');
   const [biometricCredId, setBiometricCredId] = useState<string>('');
   const [biometricStatusMsg, setBiometricStatusMsg] = useState<string>('');
   const [isScanningDeviceBio, setIsScanningDeviceBio] = useState(false);
@@ -45,6 +47,44 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   const [dnaSaltedHash, setDnaSaltedHash] = useState('0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f');
   const [isSubmittingVault, setIsSubmittingVault] = useState(false);
   const [createdTxHash, setCreatedTxHash] = useState('0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2');
+
+  const startCreateNewVault = (preset?: 'clean' | 'priya' | 'arjun') => {
+    if (preset === 'priya') {
+      setName('Priya Sharma');
+      setDob('1998-04-12');
+      setGender('Female');
+      setPhone('+91 98112 34567');
+      setBloodGroup('O+');
+      setAllergies('Peanuts');
+      setEmergencyContactName('Karan Sharma');
+      setEmergencyContactPhone('+91 98112 34568');
+    } else if (preset === 'arjun') {
+      setName('Dr. Arjun Patel');
+      setDob('1985-11-28');
+      setGender('Male');
+      setPhone('+91 97234 56780');
+      setBloodGroup('A+');
+      setAllergies('None');
+      setEmergencyContactName('Anjali Patel');
+      setEmergencyContactPhone('+91 97234 56781');
+    } else {
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      setName('');
+      setDob('1996-08-15');
+      setGender('Other');
+      setPhone(`+91 98${randomSuffix} 10293`);
+      setBloodGroup('A+');
+      setAllergies('');
+      setEmergencyContactName('');
+      setEmergencyContactPhone('');
+    }
+    setStep(1);
+    setBiometricsDone(false);
+    setBiometricType(null);
+    setBiometricCredId('');
+    setBiometricStatusMsg('');
+    setView('onboarding');
+  };
 
   // Step 5 created persona state
   const [createdPersona, setCreatedPersona] = useState<PatientPersona | null>(null);
@@ -62,13 +102,40 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
     }
   };
 
-  const handleStartBiometricScan = async () => {
+  const handleStartBiometricScan = async (forcedMode?: 'hardware' | 'virtual') => {
+    const chosenMode = forcedMode || biometricEnrollMode;
     setIsScanningBiometrics(true);
-    setBiometricStatusMsg('Prompting device hardware sensor (Touch ID / Windows Hello)...');
+
+    if (chosenMode === 'hardware') {
+      setBiometricStatusMsg('Prompting host device hardware sensor (Touch ID / Windows Hello)...');
+    } else {
+      setBiometricStatusMsg('Scanning virtual fingerprint scanner & deriving cryptographic minutiae...');
+    }
+
     try {
+      let customCredId: string | undefined;
+      let fingerLabel = 'Virtual Multi-Patient Fingerprint';
+
+      if (chosenMode === 'virtual') {
+        // Small delay to simulate realistic physical scanner interaction
+        await new Promise((r) => setTimeout(r, 650));
+
+        if (selectedVirtualFinger === 'unique-fresh') {
+          customCredId = `SIM-FP-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+          fingerLabel = `Patient ${name || 'Walk-in'} Primary Fingerprint`;
+        } else {
+          customCredId = selectedVirtualFinger;
+          fingerLabel = selectedVirtualFinger.replace('sim-', '').replace('-', ' ').toUpperCase();
+        }
+      }
+
       const res = await registerDeviceBiometric({
-        userName: name.trim() || 'Rajesh Kumar',
-        userEmail: phone.trim() || '+91 98765 43210'
+        userName: name.trim() || 'New Patient',
+        userEmail: phone.trim() || `user-${Date.now()}@medivault.id`,
+        forceFreshRegistration: true,
+        enrollmentMode: chosenMode,
+        fingerLabel,
+        customCredentialId: customCredId
       });
 
       if (res.success) {
@@ -78,12 +145,12 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
         setBiometricStatusMsg(
           res.authenticatorType === 'platform-hardware'
             ? '✓ Touch ID device hardware scanner verified & registered with cryptographic enclave!'
-            : '✓ Biometric profile verified & registered in cryptographic enclave.'
+            : `✓ Virtual Biometric verified (${fingerLabel})! Cryptographic minutiae registered in enclave.`
         );
       } else if (res.cancelled) {
-        setBiometricStatusMsg('Biometric scan prompt was dismissed. You can retry with your device sensor or use simulated enrollment.');
+        setBiometricStatusMsg('Biometric scan prompt was dismissed. You can retry with your device sensor or use the virtual scanner.');
       } else {
-        setBiometricStatusMsg(res.error || 'Biometric scan could not complete. You can retry with your device sensor.');
+        setBiometricStatusMsg(res.error || 'Biometric scan could not complete.');
       }
     } catch (err: any) {
       setBiometricStatusMsg('Biometric sensor error: ' + (err.message || 'Unknown'));
@@ -132,26 +199,31 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   const handleFinalizeVault = async () => {
     setIsSubmittingVault(true);
     try {
+      const patientName = name.trim() || 'Priya Sharma';
+      const patientPhone = phone.trim() || '+91 98112 34567';
       const res = await mockApi.registerNewPatient({
-        name: name.trim() || 'Rajesh Kumar',
-        dob: dob || '1974-05-14',
+        name: patientName,
+        dob: dob || '1995-06-20',
         gender,
-        phone: phone.trim() || '+91 98765 43210',
+        phone: patientPhone,
         bloodGroup,
         allergies: allergies ? allergies.split(',').map((s) => s.trim()).filter(Boolean) : [],
         conditions: [],
         emergencyContact: {
-          name: emergencyContactName.trim() || 'Sunita Kumar',
-          relation: 'Spouse',
-          phone: emergencyContactPhone.trim() || phone || '+91 98765 43211'
+          name: emergencyContactName.trim() || 'Primary Emergency Contact',
+          relation: 'Family',
+          phone: emergencyContactPhone.trim() || patientPhone
         },
         biometricCredentialId: biometricCredId || undefined,
         biometricRegistered: biometricsDone,
-        sensorType: biometricType === 'platform-hardware' ? 'Hardware Touch ID Platform Authenticator' : 'WebAuthn-Enclave-FIDO2',
+        sensorType:
+          biometricType === 'platform-hardware'
+            ? 'Hardware Touch ID Platform Authenticator'
+            : 'Virtual Enclave Optical Scanner (FIDO2)',
         dnaReferenceId: `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`,
         issuingLaboratory: 'National Genomics Center (NABL)',
         registeredBy: 'patient',
-        actorName: name || 'Patient Self-Registration'
+        actorName: patientName
       });
 
       setCreatedPersona(res.persona);
@@ -211,8 +283,8 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
               </button>
 
               <button
-                onClick={() => setView('onboarding')}
-                className="px-8 py-4 rounded-2xl bg-teal-800/80 hover:bg-teal-700 text-white font-bold text-base shadow-lg shadow-teal-900/20 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95"
+                onClick={() => startCreateNewVault()}
+                className="px-8 py-4 rounded-2xl bg-teal-800/80 hover:bg-teal-700 text-white font-bold text-base shadow-lg shadow-teal-900/20 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <span>Create New Vault</span>
                 <ArrowRight className="w-5 h-5" />
@@ -316,12 +388,43 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
             {/* STEP 1: Basic Details */}
             {step === 1 && (
               <div className="space-y-4 animate-fade-in">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Patient Profile Details</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Patient Profile Details</h3>
+                    <p className="text-xs text-slate-500">Enter patient demographic data or pick a quick test persona</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => startCreateNewVault('priya')}
+                      className="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 text-[11px] font-medium border border-teal-200 dark:border-teal-800 hover:bg-teal-100"
+                    >
+                      Priya Sharma
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startCreateNewVault('arjun')}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[11px] font-medium border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100"
+                    >
+                      Dr. Arjun
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startCreateNewVault('clean')}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-3 text-xs">
                   <div>
                     <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Full Legal Name</label>
                     <input
                       type="text"
+                      placeholder="e.g. Priya Sharma"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
@@ -475,6 +578,72 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                   </p>
                 </div>
 
+                {/* Biometric Enrolment Mode Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                  <div
+                    onClick={() => setBiometricEnrollMode('virtual')}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                      biometricEnrollMode === 'virtual'
+                        ? 'bg-teal-50/80 dark:bg-teal-950/60 border-teal-500 shadow-md ring-2 ring-teal-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Fingerprint className="w-4 h-4 text-teal-600" />
+                        Virtual Triage Scanner
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200">
+                        Multi-Patient
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                      Simulates physical optical scanner. Creates unique patient templates without locking to your host laptop Keychain.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setBiometricEnrollMode('hardware')}
+                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                      biometricEnrollMode === 'hardware'
+                        ? 'bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Lock className="w-4 h-4 text-indigo-600" />
+                        Host Touch ID / Hello
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                        Hardware Passkey
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                      Uses genuine macOS Touch ID / Windows Hello WebAuthn. Prompts to save passkey in your laptop's Passwords.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-selector when in Virtual mode */}
+                {biometricEnrollMode === 'virtual' && (
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-left text-xs space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                      Select Patient Fingerprint Profile / Sensor Contact:
+                    </label>
+                    <select
+                      value={selectedVirtualFinger}
+                      onChange={(e) => setSelectedVirtualFinger(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+                    >
+                      <option value="unique-fresh">✨ Generate Fresh Unique Fingerprint (Recommended for new patient)</option>
+                      <option value="sim-right-thumb">Right Thumb (Preset: Rajesh Kumar)</option>
+                      <option value="sim-left-thumb">Left Thumb (Preset: Ananya Sharma)</option>
+                      <option value="sim-right-index">Right Index (Preset: Vikram Malhotra)</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Animated Fingerprint Box */}
                 <div className="relative w-36 h-36 mx-auto rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden shadow-2xl">
                   {isScanningBiometrics && (
@@ -502,19 +671,27 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                 <div className="space-y-3">
                   {!biometricsDone ? (
                     <button
-                      onClick={handleStartBiometricScan}
+                      onClick={() => handleStartBiometricScan()}
                       disabled={isScanningBiometrics}
                       className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-xl flex items-center gap-3 mx-auto disabled:opacity-50 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
                     >
                       {isScanningBiometrics ? (
                         <>
                           <RefreshCw className="w-5 h-5 animate-spin" />
-                          <span>Scanning Fingerprint Sensor...</span>
+                          <span>
+                            {biometricEnrollMode === 'hardware'
+                              ? 'Prompting Host Touch ID...'
+                              : 'Scanning Virtual Enclave Fingerprint...'}
+                          </span>
                         </>
                       ) : (
                         <>
                           <Fingerprint className="w-5 h-5 text-emerald-200" />
-                          <span>Scan Fingerprint on My Device</span>
+                          <span>
+                            {biometricEnrollMode === 'hardware'
+                              ? 'Scan Host Touch ID Passkey'
+                              : 'Scan & Enroll Patient Fingerprint'}
+                          </span>
                         </>
                       )}
                     </button>
@@ -524,30 +701,17 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span>
                           {biometricType === 'platform-hardware'
-                            ? 'Touch ID Device Enclave Enrolled!'
-                            : 'Biometric Cryptographic Enclave Enrolled!'}
+                            ? 'Touch ID Host Hardware Enclave Enrolled!'
+                            : 'Patient Biometric Cryptographic Enclave Enrolled!'}
                         </span>
                       </div>
                       <button
-                        onClick={handleStartBiometricScan}
+                        onClick={() => handleStartBiometricScan()}
                         className="text-[11px] text-teal-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                       >
-                        <RefreshCw className="w-3 h-3" /> Re-scan / Test Device Sensor
+                        <RefreshCw className="w-3 h-3" /> Re-scan / Change Biometric
                       </button>
                     </div>
-                  )}
-
-                  {!biometricsDone && (
-                    <button
-                      onClick={() => {
-                        setBiometricsDone(true);
-                        setBiometricType('simulated-enclave');
-                        setBiometricStatusMsg('Simulated biometric template registered in local enclave.');
-                      }}
-                      className="text-[11px] text-slate-500 hover:text-slate-400 underline block mx-auto pt-1 cursor-pointer"
-                    >
-                      Fallback: Use simulated sensor template
-                    </button>
                   )}
                 </div>
 
