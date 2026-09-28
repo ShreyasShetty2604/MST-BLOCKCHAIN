@@ -9,7 +9,16 @@
   }
   
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-teal-500 selection:text-white;
+  }
+
+  /* Accessibility Focus Rings */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-teal-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 transition-shadow;
   }
 }
 
@@ -17,10 +26,10 @@
 .bg-hologram {
   background: linear-gradient(
     135deg,
-    rgba(15, 118, 110, 0.95) 0%,
-    rgba(30, 58, 138, 0.9) 35%,
-    rgba(79, 70, 229, 0.9) 70%,
-    rgba(13, 148, 136, 0.95) 100%
+    rgba(15, 118, 110, 0.98) 0%,
+    rgba(30, 58, 138, 0.92) 35%,
+    rgba(79, 70, 229, 0.92) 70%,
+    rgba(13, 148, 136, 0.98) 100%
   );
   background-size: 200% 200%;
 }
@@ -28,10 +37,10 @@
 .dark .bg-hologram {
   background: linear-gradient(
     135deg,
-    rgba(13, 110, 102, 0.95) 0%,
-    rgba(15, 23, 42, 0.95) 40%,
-    rgba(67, 56, 202, 0.9) 75%,
-    rgba(15, 118, 110, 0.95) 100%
+    rgba(13, 110, 102, 0.98) 0%,
+    rgba(15, 23, 42, 0.98) 40%,
+    rgba(67, 56, 202, 0.92) 75%,
+    rgba(15, 118, 110, 0.98) 100%
   );
   background-size: 200% 200%;
 }
@@ -39,9 +48,14 @@
 .hologram-overlay {
   background: radial-gradient(
     circle at 50% 0%,
-    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.3),
     transparent 70%
   );
+}
+
+/* Glassmorphic Panel Utility */
+.glass-panel {
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80;
 }
 
 /* Custom scrollbars */
@@ -71,4 +85,32 @@
 }
 .rotate-y-180 {
   transform: rotateY(180deg);
+}
+
+/* Micro Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bounceShort {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-bounce-short {
+  animation: bounceShort 1.5s ease-in-out infinite;
 }
