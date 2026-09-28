@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Moon, Sun, User, Building2, ShieldAlert } from 'lucide-react';
+import { Shield, Moon, Sun, User, Stethoscope, BadgeCheck } from 'lucide-react';
 import { Role, PatientPersona } from '../mock/types';
 
 interface HeaderProps {
@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Logo & ID Brand */}
+        {/* Logo & Brand */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-teal-700 flex items-center justify-center text-white shadow-glow-teal shrink-0">
             <Shield className="w-6 h-6" />
@@ -28,19 +28,19 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
-                MediVault
+                MedProof
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                MediID
+                Demo
               </span>
             </div>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-              Patient-Controlled Records • Blockchain Audit Trail
+              AI Medical Records + Patient-Controlled Consent
             </p>
           </div>
         </div>
 
-        {/* Center: Role Switcher (Discreet Dev/Demo Control) */}
+        {/* Center: Role Switcher */}
         <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 shadow-inner">
           <button
             onClick={() => onRoleChange('patient')}
@@ -62,8 +62,8 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Hospital</span>
+            <Stethoscope className="w-3.5 h-3.5" />
+            <span>Doctor</span>
           </button>
 
           <button
@@ -74,12 +74,12 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Admin</span>
+            <BadgeCheck className="w-3.5 h-3.5" />
+            <span>Verifier</span>
           </button>
         </div>
 
-        {/* Right Actions: Persona indicator & Dark Mode Toggle */}
+        {/* Right Actions */}
         <div className="flex items-center gap-3">
           {activePersona && currentRole === 'patient' && (
             <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-800 text-xs">

@@ -13,7 +13,8 @@ import { HomeTab } from './pages/PatientApp/HomeTab';
 import { RecordsTab } from './pages/PatientApp/RecordsTab';
 import { AccessTab } from './pages/PatientApp/AccessTab';
 import { AssistantTab } from './pages/PatientApp/AssistantTab';
-import { WellnessTab } from './pages/PatientApp/WellnessTab';
+import { VerificationTab } from './pages/PatientApp/VerificationTab';
+import { AuditTrailTab } from './pages/PatientApp/AuditTrailTab';
 import { HospitalPortalPage } from './pages/HospitalPortalPage';
 import { AdminPortalPage } from './pages/AdminPortalPage';
 
@@ -95,8 +96,6 @@ export function App() {
 
             {patientTab === 'records' && <RecordsTab />}
 
-            {patientTab === 'access' && <AccessTab />}
-
             {patientTab === 'assistant' && (
               <AssistantTab
                 persona={activePersona}
@@ -104,9 +103,11 @@ export function App() {
               />
             )}
 
-            {patientTab === 'wellness' && (
-              <WellnessTab persona={activePersona} onShowToast={showToast} />
-            )}
+            {patientTab === 'access' && <AccessTab />}
+
+            {patientTab === 'verification' && <VerificationTab />}
+
+            {patientTab === 'audit' && <AuditTrailTab />}
           </PatientLayout>
         )}
 

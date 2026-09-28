@@ -1,7 +1,7 @@
 import React from 'react';
-import { Home, FileText, KeyRound, Bot, HeartPulse } from 'lucide-react';
+import { LayoutDashboard, FileText, Bot, Share2, BadgeCheck, ClipboardList } from 'lucide-react';
 
-export type PatientTab = 'home' | 'records' | 'access' | 'assistant' | 'wellness';
+export type PatientTab = 'home' | 'records' | 'assistant' | 'access' | 'verification' | 'audit';
 
 interface PatientLayoutProps {
   activeTab: PatientTab;
@@ -15,11 +15,12 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
   children
 }) => {
   const tabs: { id: PatientTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'home', label: 'Home', icon: <Home className="w-5 h-5" /> },
-    { id: 'records', label: 'Records', icon: <FileText className="w-5 h-5" /> },
-    { id: 'access', label: 'Access', icon: <KeyRound className="w-5 h-5" /> },
-    { id: 'assistant', label: 'Assistant', icon: <Bot className="w-5 h-5" /> },
-    { id: 'wellness', label: 'Wellness', icon: <HeartPulse className="w-5 h-5" /> }
+    { id: 'home', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { id: 'records', label: 'Medical Records', icon: <FileText className="w-5 h-5" /> },
+    { id: 'assistant', label: 'AI Assistant', icon: <Bot className="w-5 h-5" /> },
+    { id: 'access', label: 'Consent & Sharing', icon: <Share2 className="w-5 h-5" /> },
+    { id: 'verification', label: 'Verification', icon: <BadgeCheck className="w-5 h-5" /> },
+    { id: 'audit', label: 'Audit Trail', icon: <ClipboardList className="w-5 h-5" /> },
   ];
 
   return (
@@ -28,7 +29,7 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
       <aside className="hidden md:flex flex-col w-64 shrink-0 space-y-4">
         <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-card space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-3 py-1">
-            Patient Vault Navigation
+            MedProof Navigation
           </span>
           {tabs.map((tab) => (
             <button
@@ -58,7 +59,7 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-[10px] font-semibold transition-all ${
+              className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-semibold transition-all ${
                 isActive
                   ? 'text-teal-700 dark:text-teal-400 font-bold scale-105'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'

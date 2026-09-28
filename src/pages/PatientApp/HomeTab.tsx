@@ -1,13 +1,14 @@
 import React from 'react';
 import { ShieldCheck, KeyRound, Clock, HeartPulse, ShieldAlert, ArrowRight, Activity, Calendar } from 'lucide-react';
 import { PatientPersona, CheckupReminder } from '../../mock/types';
+import { PatientTab } from './PatientLayout';
 import { HealthIdCard } from '../../components/HealthIdCard';
 
 interface HomeTabProps {
   persona: PatientPersona;
   reminders: CheckupReminder[];
   onOpenEmergency: () => void;
-  onNavigateTab: (tab: 'records' | 'access' | 'wellness') => void;
+  onNavigateTab: (tab: PatientTab) => void;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -110,7 +111,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </h3>
           </div>
           <button
-            onClick={() => onNavigateTab('wellness')}
+            onClick={() => onNavigateTab('records')}
             className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
           >
             <span>View All</span>
