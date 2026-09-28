@@ -245,7 +245,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const vault = db.getVaultById(vaultId);
+      const vault = db.getVaultByIdOrMediId(vaultId);
       if (!vault) {
         sendJson(res, 404, { success: false, error: 'Vault not found' });
         return;
@@ -312,7 +312,9 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const bio = db.getFingerprint(vaultId);
+      const resolvedVault = db.getVaultByIdOrMediId(vaultId);
+      const actualVaultId = resolvedVault ? resolvedVault.vaultId : vaultId;
+      const bio = db.getFingerprint(actualVaultId);
       if (!bio) {
         sendJson(res, 404, { success: false, error: 'No biometric record enrolled for this vault' });
         return;

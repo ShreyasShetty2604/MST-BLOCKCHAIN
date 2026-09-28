@@ -5,6 +5,7 @@ import {
 import { PatientPersona } from '../../mock/types';
 import { mockApi } from '../../mock/api';
 import { formatMediId } from '../../lib/formatters';
+import { scanDeviceBiometric, registerDeviceBiometric } from '../../lib/biometrics';
 
 interface LoginPageProps {
   onLoginSuccess: (persona: PatientPersona) => void;
@@ -57,23 +58,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsScanning(true);
     setShowNewFingerprintPrompt(false);
 
-    setTimeout(async () => {
-      setIsScanning(false);
-
+    try {
       if (forceNew) {
         setShowNewFingerprintPrompt(true);
         return;
       }
 
-      // Check existing persona for fingerprint match
-      const currentPatient = await mockApi.getCurrentPatient();
-      if (currentPatient) {
-        onShowToast(`Biometric authentication verified for ${currentPatient.name}!`);
-        onLoginSuccess(currentPatient);
+      onShowToast('Please touch your device fingerprint sensor (Touch ID / Windows Hello)...');
+      const res = await scanDeviceBiometric();
+
+      if (res.success) {
+        const currentPatient = await mockApi.getCurrentPatient();
+        if (currentPatient) {
+          onShowToast(`✓ Touch ID Biometric authentication verified for ${currentPatient.name}!`);
+          onLoginSuccess(currentPatient);
+        } else {
+          setShowNewFingerprintPrompt(true);
+        }
+      } else if (res.cancelled) {
+        onShowToast('Biometric scan prompt was cancelled.');
       } else {
-        setShowNewFingerprintPrompt(true);
+        onShowToast(res.error || 'Biometric verification could not complete.');
       }
-    }, 1800);
+    } catch (err: any) {
+      onShowToast('Biometric sensor error: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleSendIdRequest = async (e: React.FormEvent) => {

@@ -7,6 +7,7 @@ import { HealthIdCard } from '../components/HealthIdCard';
 import { PendingChainChip } from '../components/ChainBadge';
 import { PatientPersona } from '../mock/types';
 import { mockApi } from '../mock/api';
+import { registerDeviceBiometric, scanDeviceBiometric } from '../lib/biometrics';
 
 interface LandingOnboardingPageProps {
   onCompleteOnboarding: () => void;
@@ -32,6 +33,11 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   const [otp, setOtp] = useState(['5', '8', '2', '0', '1', '9']);
   const [isScanningBiometrics, setIsScanningBiometrics] = useState(false);
   const [biometricsDone, setBiometricsDone] = useState(false);
+  const [biometricType, setBiometricType] = useState<'platform-hardware' | 'simulated-enclave' | null>(null);
+  const [biometricCredId, setBiometricCredId] = useState<string>('');
+  const [biometricStatusMsg, setBiometricStatusMsg] = useState<string>('');
+  const [isScanningDeviceBio, setIsScanningDeviceBio] = useState(false);
+  const [landingBioToast, setLandingBioToast] = useState<string | null>(null);
   const [dnaSaltedHash, setDnaSaltedHash] = useState('0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f');
   const [isSubmittingVault, setIsSubmittingVault] = useState(false);
   const [createdTxHash, setCreatedTxHash] = useState('0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2');
@@ -52,12 +58,71 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
     }
   };
 
-  const handleStartBiometricScan = () => {
+  const handleStartBiometricScan = async () => {
     setIsScanningBiometrics(true);
-    setTimeout(() => {
+    setBiometricStatusMsg('Prompting device hardware sensor (Touch ID / Windows Hello)...');
+    try {
+      const res = await registerDeviceBiometric({
+        userName: name.trim() || 'Rajesh Kumar',
+        userEmail: phone.trim() || '+91 98765 43210'
+      });
+
+      if (res.success) {
+        setBiometricsDone(true);
+        setBiometricType(res.authenticatorType);
+        if (res.credentialId) setBiometricCredId(res.credentialId);
+        setBiometricStatusMsg(
+          res.authenticatorType === 'platform-hardware'
+            ? '✓ Touch ID device hardware scanner verified & registered with cryptographic enclave!'
+            : '✓ Biometric profile verified & registered in cryptographic enclave.'
+        );
+      } else if (res.cancelled) {
+        setBiometricStatusMsg('Biometric scan prompt was dismissed. You can retry with your device sensor or use simulated enrollment.');
+      } else {
+        setBiometricStatusMsg(res.error || 'Biometric scan could not complete. You can retry with your device sensor.');
+      }
+    } catch (err: any) {
+      setBiometricStatusMsg('Biometric sensor error: ' + (err.message || 'Unknown'));
+    } finally {
       setIsScanningBiometrics(false);
-      setBiometricsDone(true);
-    }, 1500);
+    }
+  };
+
+  const handleLandingBiometricLogin = async () => {
+    setIsScanningDeviceBio(true);
+    setLandingBioToast('Please touch your fingerprint sensor (Touch ID / Windows Hello)...');
+    try {
+      const res = await scanDeviceBiometric();
+      if (res.success) {
+        const currentPatient = await mockApi.getCurrentPatient();
+        if (currentPatient) {
+          setLandingBioToast(`✓ Touch ID Verified for ${currentPatient.name}! Unlocking vault...`);
+          setTimeout(() => {
+            onCompleteOnboarding();
+          }, 800);
+          return;
+        } else {
+          setLandingBioToast('Biometric verified! Setting up your new sovereign MediVault...');
+          setTimeout(() => {
+            setView('onboarding');
+            setStep(1);
+            setBiometricsDone(true);
+            setBiometricType(res.authenticatorType);
+          }, 800);
+        }
+      } else if (res.cancelled) {
+        setLandingBioToast('Touch ID scan was cancelled.');
+        setTimeout(() => setLandingBioToast(null), 3000);
+      } else {
+        setLandingBioToast(res.error || 'Biometric verification failed.');
+        setTimeout(() => setLandingBioToast(null), 3000);
+      }
+    } catch (err: any) {
+      setLandingBioToast('Biometric sensor unavailable: ' + (err?.message || 'Error'));
+      setTimeout(() => setLandingBioToast(null), 3000);
+    } finally {
+      setIsScanningDeviceBio(false);
+    }
   };
 
   const handleFinalizeVault = async () => {
@@ -76,6 +141,9 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
           relation: 'Spouse',
           phone: emergencyContactPhone.trim() || phone || '+91 98765 43211'
         },
+        biometricCredentialId: biometricCredId || undefined,
+        biometricRegistered: biometricsDone,
+        sensorType: biometricType === 'platform-hardware' ? 'Hardware Touch ID Platform Authenticator' : 'WebAuthn-Enclave-FIDO2',
         dnaReferenceId: `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`,
         issuingLaboratory: 'National Genomics Center (NABL)',
         registeredBy: 'patient',
@@ -121,10 +189,28 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
               <button
-                onClick={() => setView('onboarding')}
-                className="px-8 py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-base shadow-lg shadow-teal-700/20 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95"
+                onClick={handleLandingBiometricLogin}
+                disabled={isScanningDeviceBio}
+                className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-base shadow-lg shadow-emerald-700/25 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
               >
-                <span>Create Your Vault</span>
+                {isScanningDeviceBio ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin text-white" />
+                    <span>Scanning Touch ID...</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-5 h-5 text-emerald-200" />
+                    <span>Scan Fingerprint to Unlock</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setView('onboarding')}
+                className="px-8 py-4 rounded-2xl bg-teal-800/80 hover:bg-teal-700 text-white font-bold text-base shadow-lg shadow-teal-900/20 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95"
+              >
+                <span>Create New Vault</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
 
@@ -136,6 +222,14 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                 <span>Hospital Portal Login</span>
               </button>
             </div>
+
+            {/* Live Biometric Sensor Status Toast */}
+            {landingBioToast && (
+              <div className="p-3 bg-teal-950/90 border border-teal-500/40 text-teal-100 rounded-xl text-xs font-mono max-w-md mx-auto flex items-center justify-center gap-2 shadow-lg animate-fade-in">
+                <Fingerprint className="w-4 h-4 text-emerald-400 shrink-0 animate-pulse" />
+                <span>{landingBioToast}</span>
+              </div>
+            )}
           </div>
 
           {/* Trust Strip */}
@@ -351,20 +445,22 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
             {step === 3 && (
               <div className="space-y-6 text-center animate-fade-in">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Biometric Device Passkey</h3>
-                  <p className="text-xs text-slate-500 mt-1">Enrol WebAuthn fingerprint scanner to seal vault private key.</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Device Fingerprint Hardware Enrolment</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Every new MediVault user must enrol their device biometric scanner (Touch ID / Windows Hello) to encrypt their master vault key.
+                  </p>
                 </div>
 
                 {/* Animated Fingerprint Box */}
-                <div className="relative w-36 h-36 mx-auto rounded-3xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shadow-2xl">
+                <div className="relative w-36 h-36 mx-auto rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden shadow-2xl">
                   {isScanningBiometrics && (
-                    <div className="absolute inset-x-0 h-1 bg-teal-400 shadow-glow-teal animate-scan-line z-20" />
+                    <div className="absolute inset-x-0 h-1 bg-emerald-400 shadow-glow-teal animate-scan-line z-20" />
                   )}
 
                   <Fingerprint
                     className={`w-20 h-20 transition-all duration-300 ${
                       biometricsDone
-                        ? 'text-emerald-400 scale-110'
+                        ? 'text-emerald-400 scale-110 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]'
                         : isScanningBiometrics
                         ? 'text-teal-400 animate-pulse'
                         : 'text-slate-600'
@@ -372,46 +468,73 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
                   />
                 </div>
 
-                <div className="space-y-2">
+                {/* Status message */}
+                {biometricStatusMsg && (
+                  <p className="text-xs font-mono text-teal-300 max-w-sm mx-auto bg-slate-900/90 p-2.5 rounded-xl border border-teal-500/30">
+                    {biometricStatusMsg}
+                  </p>
+                )}
+
+                <div className="space-y-3">
                   {!biometricsDone ? (
                     <button
                       onClick={handleStartBiometricScan}
                       disabled={isScanningBiometrics}
-                      className="px-8 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg flex items-center gap-2 mx-auto disabled:opacity-50"
+                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm shadow-xl flex items-center gap-3 mx-auto disabled:opacity-50 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
                     >
                       {isScanningBiometrics ? (
                         <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Scanning Biometrics...</span>
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          <span>Scanning Fingerprint Sensor...</span>
                         </>
                       ) : (
                         <>
-                          <Fingerprint className="w-4 h-4" />
-                          <span>Use Device Biometrics</span>
+                          <Fingerprint className="w-5 h-5 text-emerald-200" />
+                          <span>Scan Fingerprint on My Device</span>
                         </>
                       )}
                     </button>
                   ) : (
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/80 rounded-xl text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 max-w-xs mx-auto">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Fingerprint Key Pair Registered!</span>
+                    <div className="space-y-2">
+                      <div className="p-3 bg-emerald-950/80 border border-emerald-500/40 rounded-2xl text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 max-w-sm mx-auto shadow-md">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>
+                          {biometricType === 'platform-hardware'
+                            ? 'Touch ID Device Enclave Enrolled!'
+                            : 'Biometric Cryptographic Enclave Enrolled!'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleStartBiometricScan}
+                        className="text-[11px] text-teal-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Re-scan / Test Device Sensor
+                      </button>
                     </div>
                   )}
 
-                  <button
-                    onClick={() => setBiometricsDone(true)}
-                    className="text-[11px] text-slate-400 hover:underline block mx-auto pt-1"
-                  >
-                    Mock scan (Instant Pass)
-                  </button>
+                  {!biometricsDone && (
+                    <button
+                      onClick={() => {
+                        setBiometricsDone(true);
+                        setBiometricType('simulated-enclave');
+                        setBiometricStatusMsg('Simulated biometric template registered in local enclave.');
+                      }}
+                      className="text-[11px] text-slate-500 hover:text-slate-400 underline block mx-auto pt-1 cursor-pointer"
+                    >
+                      Fallback: Use simulated sensor template
+                    </button>
+                  )}
                 </div>
 
-                <div className="pt-4 flex items-center justify-between">
-                  <button onClick={() => setStep(2)} className="text-xs text-slate-500">Back</button>
+                <div className="pt-4 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+                  <button onClick={() => setStep(2)} className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+                    Back
+                  </button>
                   <button
                     onClick={() => setStep(4)}
                     disabled={!biometricsDone}
-                    className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-2 disabled:opacity-50"
+                    className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-md cursor-pointer"
                   >
                     <span>Proceed to DNA Hash</span>
                     <ArrowRight className="w-4 h-4" />

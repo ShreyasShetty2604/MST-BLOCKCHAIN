@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   Wallet, Building2, Search, QrCode, ShieldAlert, CheckCircle2, AlertTriangle,
-  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock, UserPlus
+  Clock, Plus, FileText, Send, ShieldCheck, Loader2, X, Activity, User, Lock, UserPlus, Fingerprint, RefreshCw
 } from 'lucide-react';
 import { PatientPersona, MedicalRecord } from '../mock/types';
 import { ChainBadge } from '../components/ChainBadge';
 import { TimelineItem } from '../components/TimelineItem';
 import { mockApi } from '../mock/api';
+import { registerDeviceBiometric } from '../lib/biometrics';
 
 interface HospitalPortalPageProps {
   onShowToast: (msg: string) => void;
@@ -46,7 +47,34 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
   const [regEmergencyContact, setRegEmergencyContact] = useState('Meera Prasad');
   const [regEmergencyPhone, setRegEmergencyPhone] = useState('+91 98450 11224');
   const [regDnaRef, setRegDnaRef] = useState('DNA-LAB-771920');
+  const [regBiometricEnrolled, setRegBiometricEnrolled] = useState(false);
+  const [regBiometricScanning, setRegBiometricScanning] = useState(false);
+  const [regBiometricCredId, setRegBiometricCredId] = useState<string>('');
   const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleScanHospitalPatientBiometrics = async () => {
+    setRegBiometricScanning(true);
+    try {
+      onShowToast('Prompting device hardware fingerprint scanner for patient...');
+      const res = await registerDeviceBiometric({
+        userName: regName || 'Walk-in Patient',
+        userEmail: regPhone || '+91 98450 11223'
+      });
+      if (res.success) {
+        setRegBiometricEnrolled(true);
+        if (res.credentialId) setRegBiometricCredId(res.credentialId);
+        onShowToast('✓ Patient biometric template enrolled via Hardware Authenticator!');
+      } else if (res.cancelled) {
+        onShowToast('Biometric scan prompt cancelled.');
+      } else {
+        onShowToast(res.error || 'Biometric scan could not complete.');
+      }
+    } catch (err: any) {
+      onShowToast('Biometric error: ' + (err?.message || 'Error'));
+    } finally {
+      setRegBiometricScanning(false);
+    }
+  };
 
   // Add record modal states & dynamic clinical fields
   const [showAddRecordModal, setShowAddRecordModal] = useState(false);
@@ -101,6 +129,9 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
           relation: 'Family',
           phone: regEmergencyPhone.trim() || regPhone.trim() || '+91 98765 00000'
         },
+        biometricCredentialId: regBiometricCredId || undefined,
+        biometricRegistered: regBiometricEnrolled,
+        sensorType: regBiometricEnrolled ? 'Hospital Triage Hardware Scanner' : 'WebAuthn-Enclave-FIDO2',
         dnaReferenceId: regDnaRef.trim() || `DNA-LAB-${Math.floor(100000 + Math.random() * 900000)}`,
         issuingLaboratory: 'City General Clinical Pathology Lab (NABL)',
         registeredBy: 'hospital',
@@ -943,6 +974,57 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                   onChange={(e) => setRegDnaRef(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Patient Biometric Enrolment Box */}
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Fingerprint className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      Patient Device Biometric Enrolment
+                    </span>
+                  </div>
+                  {regBiometricEnrolled ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
+                      <CheckCircle2 className="w-3 h-3" /> Enrolled (Touch ID / Enclave)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500 font-medium">Pending Scan</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Enrol patient's fingerprint passkey to bind their private vault key to their hardware biometric authenticator.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleScanHospitalPatientBiometrics}
+                    disabled={regBiometricScanning}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {regBiometricScanning ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Prompting Fingerprint Scanner...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Fingerprint className="w-3.5 h-3.5" />
+                        <span>{regBiometricEnrolled ? 'Re-scan Fingerprint' : 'Scan Patient Fingerprint'}</span>
+                      </>
+                    )}
+                  </button>
+                  {!regBiometricEnrolled && (
+                    <button
+                      type="button"
+                      onClick={() => setRegBiometricEnrolled(true)}
+                      className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                    >
+                      Instant simulated enroll
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800">

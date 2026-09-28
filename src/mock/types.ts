@@ -25,6 +25,9 @@ export interface PatientPersona {
   verifiedRecordCount: number;
   activeConsentCount: number;
   lastAccessTime: string;
+  biometricRegistered?: boolean;
+  biometricCredentialId?: string;
+  biometricEnrolledAt?: string;
 }
 
 export interface IdentitySecurityState {

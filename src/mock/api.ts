@@ -115,6 +115,9 @@ export const mockApi = {
     dnaReferenceId?: string;
     issuingLaboratory?: string;
     biometricTemplate?: any;
+    biometricCredentialId?: string;
+    biometricRegistered?: boolean;
+    sensorType?: string;
     registeredBy?: 'patient' | 'hospital';
     actorName?: string;
   }): Promise<{ persona: PatientPersona; vaultId: string; mediId: string; txHash: string }> => {
@@ -164,7 +167,8 @@ export const mockApi = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               vaultId,
-              sensorType: 'WebAuthn-Enclave-FIDO2',
+              passkeyCredentialId: input.biometricCredentialId,
+              sensorType: input.sensorType || 'WebAuthn-Enclave-FIDO2',
               biometricTemplate: input.biometricTemplate
             })
           });
@@ -230,7 +234,10 @@ export const mockApi = {
       },
       verifiedRecordCount: input.registeredBy === 'hospital' ? 1 : 0,
       activeConsentCount: input.registeredBy === 'hospital' ? 1 : 0,
-      lastAccessTime: 'Just now'
+      lastAccessTime: 'Just now',
+      biometricRegistered: input.biometricRegistered !== false,
+      biometricCredentialId: input.biometricCredentialId,
+      biometricEnrolledAt: new Date().toISOString()
     };
 
     // Save to personas list in localStorage
