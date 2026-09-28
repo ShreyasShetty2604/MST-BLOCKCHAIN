@@ -3,6 +3,11 @@ import hre from "hardhat";
 async function main() {
   console.log("Deploying MediVault contracts to network:", hre.network.name);
 
+  const MediVaultMaster = await hre.ethers.getContractFactory("MediVaultMaster");
+  const master = await MediVaultMaster.deploy();
+  await master.waitForDeployment();
+  console.log("MediVaultMaster deployed to:", await master.getAddress());
+
   const MediVaultCore = await hre.ethers.getContractFactory("MediVaultCore");
   const mediVaultCore = await MediVaultCore.deploy();
   await mediVaultCore.waitForDeployment();
