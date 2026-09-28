@@ -30,7 +30,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast, s
   const loadData = async () => {
     const h = await mockApi.getHospitals();
     const s = await mockApi.getSystemStats();
-    const a = await mockApi.getAuditLogs();
+    const a = await mockApi.getAllAuditLogs();
     setHospitals(h);
     setStats(s);
     setFlaggedLogs(a.filter((log) => log.isFlagged));

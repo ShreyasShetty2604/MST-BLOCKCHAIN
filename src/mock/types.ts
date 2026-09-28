@@ -21,6 +21,7 @@ export interface PatientPersona {
   avatarUrl?: string;
   dnaSaltedHash?: string;
   vaultId?: string;
+  walletAddress?: string;
   emergencyInfo: EmergencyInfo;
   verifiedRecordCount: number;
   activeConsentCount: number;
@@ -150,4 +151,44 @@ export interface SystemStats {
   emergenciesUsed: number;
   networkStatus: string;
   dailyAuditsTrend: { day: string; accesses: number; emergencies: number }[];
+}
+
+// Auth
+export type LoginMethod = 'biometric' | 'id-request' | 'demo';
+
+export interface Session {
+  personaId: string;
+  method: LoginMethod;
+  loggedInAt: string;
+}
+
+export interface BiometricCredential {
+  credentialId: string; // WebAuthn rawId (base64url) or a simulated finger id
+  personaId: string;
+  kind: 'webauthn' | 'simulated';
+  label: string;
+  createdAt: string;
+}
+
+export interface LoginRequest {
+  id: string;
+  personaId: string;
+  patientName: string;
+  mediId: string;
+  code: string; // shown on both devices so the patient can match them
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  createdAt: string;
+  expiresAt: string;
+  deviceLabel: string;
+}
+
+export interface NewPatientInput {
+  name: string;
+  dob: string;
+  gender: string;
+  phone: string;
+  email: string;
+  bloodGroup: string;
+  allergies: string[];
+  conditions: string[];
 }

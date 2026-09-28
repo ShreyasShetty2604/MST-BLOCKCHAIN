@@ -180,7 +180,8 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
         'hosp-01',
         'City General Hospital',
         breakGlassCategory,
-        breakGlassNotes
+        breakGlassNotes,
+        patient.id
       );
       setAccessState('break-glass');
       setApprovedTier('Tier 1');

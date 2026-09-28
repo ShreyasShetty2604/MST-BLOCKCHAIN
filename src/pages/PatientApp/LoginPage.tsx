@@ -44,11 +44,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsSeedingData(true);
     try {
       await mockApi.resetDemoData();
-      const defaultPatient = await mockApi.getCurrentPatient();
+      const personas = await mockApi.getPersonas();
+      const defaultPatient = (await mockApi.getCurrentPatient()) || personas[0];
       setDataLoaded(true);
-      onShowToast(`Loaded active demo data for ${defaultPatient.name}! Unlocking dashboard...`);
-      // Immediately open patient dashboard with demo data!
-      onLoginSuccess(defaultPatient);
+      if (defaultPatient) {
+        onShowToast(`Loaded active demo data for ${defaultPatient.name}! Unlocking dashboard...`);
+        // Immediately open patient dashboard with demo data!
+        onLoginSuccess(defaultPatient);
+      }
     } finally {
       setIsSeedingData(false);
     }
