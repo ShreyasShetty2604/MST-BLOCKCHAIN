@@ -6,6 +6,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { PatientPersona, CheckupReminder } from '../../mock/types';
 import { ChainBadge } from '../../components/ChainBadge';
 import { mockApi } from '../../mock/api';
+import { MealScanCard } from '../../components/MealScanCard';
 
 interface WellnessTabProps {
   persona: PatientPersona;
@@ -253,6 +254,9 @@ export const WellnessTab: React.FC<WellnessTabProps> = ({ persona, onShowToast }
               </div>
             </div>
           </div>
+
+          {/* Meal photo scan */}
+          <MealScanCard persona={persona} />
 
           {/* Indian Meal Cards */}
           <div className="space-y-3">

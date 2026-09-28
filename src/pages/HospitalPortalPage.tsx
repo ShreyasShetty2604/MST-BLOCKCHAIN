@@ -61,7 +61,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
       setIsSendingRequest(false);
       setAccessState('approved');
       setApprovedTier(requestedTier);
-      mockApi.getRecords().then(setRecords);
+      if (patient) mockApi.getRecords('All', patient.id).then(setRecords);
       onShowToast(`Patient approved ${requestedTier} access for 2 hours!`);
     }, 1500);
   };
@@ -76,7 +76,8 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
         'hosp-01',
         'City General Hospital',
         breakGlassCategory,
-        breakGlassNotes
+        breakGlassNotes,
+        patient.id
       );
       setAccessState('break-glass');
       setApprovedTier('Tier 1');
@@ -107,7 +108,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
 
       setShowAddRecordModal(false);
       onShowToast(`Record anchored on-chain! Tx: ${res.txHash.slice(0, 10)}... Reminder updated.`);
-      const updated = await mockApi.getRecords();
+      const updated = await mockApi.getRecords('All', patient.id);
       setRecords(updated);
     } finally {
       setIsSigningWallet(false);

@@ -6,7 +6,6 @@ import {
 import { HealthIdCard } from '../components/HealthIdCard';
 import { PendingChainChip } from '../components/ChainBadge';
 import { PatientPersona } from '../mock/types';
-import { mockApi } from '../mock/api';
 
 interface LandingOnboardingPageProps {
   onCompleteOnboarding: () => void;
@@ -55,13 +54,26 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
   };
 
   const handleFinalizeVault = async () => {
-    const p = await mockApi.getCurrentPatient();
+    // Preview card only; the real vault is created on the Login page with a fingerprint.
     setCreatedPersona({
-      ...p,
-      name: name || p.name,
-      dob: dob || p.dob,
-      phone: phone || p.phone,
-      dnaSaltedHash
+      id: 'onboarding-preview',
+      name,
+      mediId: '91-0000-0000-0000',
+      dob,
+      gender: '',
+      phone,
+      email: '',
+      dnaSaltedHash,
+      emergencyInfo: {
+        bloodGroup: '',
+        allergies: [],
+        conditions: [],
+        medications: [],
+        emergencyContact: { name: '', relation: '', phone: '' }
+      },
+      verifiedRecordCount: 0,
+      activeConsentCount: 0,
+      lastAccessTime: 'Just now'
     });
     setStep(5);
 

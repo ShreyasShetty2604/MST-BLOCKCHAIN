@@ -36,7 +36,7 @@ export const DemoToolsDrawer: React.FC<DemoToolsDrawerProps> = ({ onStateChange,
     setIsProcessing(true);
     try {
       const p = await mockApi.setActivePersonaId(id);
-      setActiveId(p.id);
+      setActiveId(p?.id ?? '');
       onShowToast(`Loaded persona: ${p.name} (${p.emergencyInfo.conditions[0] || 'Healthy'})`);
       onStateChange();
     } finally {
@@ -100,7 +100,7 @@ export const DemoToolsDrawer: React.FC<DemoToolsDrawerProps> = ({ onStateChange,
     try {
       await mockApi.resetDemoData();
       const p = await mockApi.getCurrentPatient();
-      setActiveId(p.id);
+      setActiveId(p?.id ?? '');
       onShowToast('Demo state reset to initial seed data!');
       onStateChange();
     } finally {
