@@ -167,7 +167,7 @@
 .nurse-scene { position: relative; width: 168px; height: 124px; flex: 0 0 168px; perspective: 500px; }
 .nurse-orbit { position: absolute; inset: 13px 19px; border: 1px solid rgba(44, 180, 255, .38); border-radius: 50%; transform: rotateX(66deg) rotateZ(-16deg); animation: nurse-orbit 5s linear infinite; }
 .nurse-orbit-two { inset: 25px 5px; border-color: rgba(119, 96, 238, .3); animation-duration: 7s; animation-direction: reverse; }
-.nurse-figure { position: absolute; top: 6px; left: 53px; width: 67px; height: 108px; transform-style: preserve-3d; animation: nurse-float 3.8s ease-in-out infinite; filter: drop-shadow(0 12px 8px rgba(15, 90, 177, .22)); }
+.nurse-figure { position: absolute; top: 6px; left: 53px; width: 67px; height: 108px; transform-style: preserve-3d; animation: nurse-dance 2.8s ease-in-out infinite; filter: drop-shadow(0 12px 8px rgba(15, 90, 177, .22)); }
 .nurse-figure::before, .nurse-figure::after { content: ''; position: absolute; z-index: -1; top: 57px; width: 17px; height: 39px; border: 3px solid #b8f2ff; border-radius: 12px; background: linear-gradient(135deg, #41d6ff, #147dcc); box-shadow: inset -4px -3px 7px rgba(0, 42, 110, .24); }
 .nurse-figure::before { left: -10px; transform: rotate(22deg); }.nurse-figure::after { right: -10px; transform: rotate(-22deg); }
 .nurse-antenna { position: absolute; top: -3px; left: 31px; width: 5px; height: 12px; border-radius: 99px; background: #34d8ff; }
@@ -184,7 +184,7 @@
 .assistant-suggestions { display: flex; align-items: center; gap: .8rem; overflow: hidden; color: #5b7979; font-size: .69rem; font-weight: 800; }.assistant-suggestions > span { display: flex; align-items: center; gap: .35rem; white-space: nowrap; }.assistant-suggestions > div { display: flex; gap: .45rem; overflow-x: auto; padding: .15rem 0; }.assistant-suggestions button { flex: 0 0 auto; padding: .42rem .7rem; border: 1px solid #cce8e3; border-radius: 999px; background: #f4fffc; color: #23736c; font-size: .68rem; font-weight: 700; transition: .2s ease; }.assistant-suggestions button:hover { border-color: #74cbbf; background: #e6faf5; transform: translateY(-1px); }.dark .assistant-suggestions button { border-color: #285b58; background: #112d2e; color: #a8e5dd; }
 .assistant-composer { display: flex; gap: .6rem; padding: .45rem; border: 1px solid #b9ded7; border-radius: 1.2rem; background: white; box-shadow: 0 10px 24px rgba(15, 118, 110, .08); }.dark .assistant-composer { border-color: #2c6662; background: #102729; }.assistant-composer input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; padding: .6rem .8rem; color: inherit; font-size: .78rem; }.assistant-composer button { display: grid; width: 2.65rem; place-items: center; border-radius: .9rem; background: linear-gradient(135deg, #15948a, #0a716d); color: white; box-shadow: 0 5px 12px rgba(8, 111, 106, .25); transition: .2s ease; }.assistant-composer button:hover { transform: translateY(-1px) scale(1.02); }
 
-@keyframes nurse-float { 0%, 100% { transform: translateY(2px) rotateY(-7deg); } 50% { transform: translateY(-7px) rotateY(7deg); } }
+@keyframes nurse-dance { 0%, 100% { transform: translateY(2px) rotateY(-7deg) rotateZ(-2deg); } 25% { transform: translateY(-4px) rotateY(5deg) rotateZ(2deg); } 50% { transform: translateY(-8px) rotateY(7deg) rotateZ(-2deg); } 75% { transform: translateY(-3px) rotateY(-4deg) rotateZ(2deg); } }
 @keyframes nurse-orbit { to { transform: rotateX(66deg) rotateZ(344deg); } }
 @media (max-width: 640px) { .assistant-hero { padding: 1.2rem; }.nurse-scene { width: 112px; flex-basis: 112px; transform: scale(.82); transform-origin: right center; }.assistant-suggestions { align-items: flex-start; flex-direction: column; gap: .35rem; } }
 @media (prefers-reduced-motion: reduce) { .nurse-figure, .nurse-orbit { animation: none; }.assistant-suggestions button, .assistant-composer button { transition: none; } }
@@ -210,10 +210,11 @@
 @media (max-width: 640px) { .assistant-hero { min-height: 200px; padding: 3.65rem 1.15rem .85rem; }.assistant-hero h1 { font-size: clamp(1.65rem, 8vw, 2.25rem); }.assistant-hero .nurse-scene { transform: scale(.72); } }
 
 /* The answer panel is the main workspace; the robot remains a compact visual cue. */
-.assistant-hero { flex: 0 0 118px; min-height: 118px; padding-top: 2.5rem; padding-bottom: .55rem; }
-.assistant-hero h1 { font-size: clamp(1.15rem, 1.8vw, 1.7rem); margin: .15rem 0; }
+.assistant-hero { flex: 0 0 170px; min-height: 170px; padding-top: 3.25rem; padding-bottom: .85rem; align-items: flex-end; }
+.assistant-hero h1 { font-size: clamp(1.35rem, 2vw, 1.9rem); margin: .15rem 0; }
+.assistant-eyebrow { display: none; }
 .assistant-hero p { display: none; }.assistant-status { margin-top: .35rem; }
-.assistant-hero .nurse-scene { width: 108px; height: 80px; flex-basis: 108px; transform: scale(.58) translate(-18px, 4px); }
+.assistant-hero .nurse-scene { width: 180px; height: 130px; flex-basis: 180px; transform: scale(.9) translate(-6px, 5px); }
 .assistant-chat { flex: 1 1 0%; min-height: 0; padding: 1.35rem; }
 .assistant-message { font-size: .9rem; line-height: 1.65; }
-@media (max-width: 640px) { .assistant-hero { flex-basis: 126px; min-height: 126px; padding-top: 2.85rem; }.assistant-hero h1 { font-size: 1.25rem; }.assistant-hero .nurse-scene { transform: scale(.5); right: -1.8rem; }.assistant-chat { min-height: 0; padding: 1rem; }.assistant-message { font-size: .875rem; } }
+@media (max-width: 640px) { .assistant-hero { flex-basis: 142px; min-height: 142px; padding-top: 2.85rem; }.assistant-hero h1 { font-size: 1.25rem; }.assistant-hero .nurse-scene { transform: scale(.62); right: -1.25rem; }.assistant-chat { min-height: 0; padding: 1rem; }.assistant-message { font-size: .875rem; } }
