@@ -45,7 +45,9 @@ export const AssistantTab: React.FC<AssistantTabProps> = ({ persona }) => {
   const [consents, setConsents] = useState<Consent[]>([]);
   const [messages, setMessages] = useState<Message[]>([{ id: 'welcome', sender: 'assistant', timestamp: 'Just now', text: `Hi ${persona.name.split(' ')[0]} 👋 I’m your MediVault AI Assistant. I use only the records in your vault.\n\nAsk about your records, compare reports, verify documents, or control who can access them.` }]);
   const [input, setInput] = useState(''); const [typing, setTyping] = useState(false); const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, typing]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, typing]);
   const actions = [['Summarize My History', 'Summarize my medical history'], ['Find My Medicines', 'What medicines were prescribed recently?'], ['Compare My Reports', 'Compare my reports'], ['Share a Record', 'Share my latest blood report with Dr. Sharma for 24 hours'], ['Verify a Document', 'Verify my latest blood report'], ['Check My Access', 'What records can Dr. Sharma access?']];
 
   const answer = (query: string): Omit<Message, 'id' | 'sender' | 'timestamp'> => {

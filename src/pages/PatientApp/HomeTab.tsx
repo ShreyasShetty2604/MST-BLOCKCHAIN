@@ -1,8 +1,9 @@
-import React from 'react';
-import { ShieldCheck, KeyRound, Clock, HeartPulse, ShieldAlert, ArrowRight, Activity, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShieldCheck, KeyRound, Clock, HeartPulse, ShieldAlert, ArrowRight, Activity, Calendar, FileText } from 'lucide-react';
 import { PatientPersona, CheckupReminder } from '../../mock/types';
 import { PatientTab } from './PatientLayout';
 import { HealthIdCard } from '../../components/HealthIdCard';
+import { RecentReportsModal } from '../../components/RecentReportsModal';
 
 interface HomeTabProps {
   persona: PatientPersona;
@@ -20,6 +21,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenScanner
 }) => {
   const dueReminders = reminders.filter((r) => r.dueState !== 'done').slice(0, 2);
+  const [recentReportsOpen, setRecentReportsOpen] = useState(false);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -137,6 +139,25 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       </div>
 
+      <section className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recent Reports</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Review, verify, and download your latest clinical reports.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setRecentReportsOpen(true)}
+          className="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold inline-flex items-center gap-2 transition-colors"
+        >
+          <Activity className="w-4 h-4" />
+          View Recent Reports
+        </button>
+      </section>
+
       {/* Upcoming Checkups Strip */}
       <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
         <div className="flex items-center justify-between">
@@ -178,6 +199,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           ))}
         </div>
       </div>
+
+      {recentReportsOpen && (
+        <RecentReportsModal patientName={persona.name} onClose={() => setRecentReportsOpen(false)} />
+      )}
     </div>
   );
 };
