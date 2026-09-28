@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-teal: #0F766E;
+    --accent-indigo: #4F46E5;
+  }
+  
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased;
+  }
+}
+
+/* Custom Holographic Card Gradient */
+.bg-hologram {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 118, 110, 0.95) 0%,
+    rgba(30, 58, 138, 0.9) 35%,
+    rgba(79, 70, 229, 0.9) 70%,
+    rgba(13, 148, 136, 0.95) 100%
+  );
+  background-size: 200% 200%;
+}
+
+.dark .bg-hologram {
+  background: linear-gradient(
+    135deg,
+    rgba(13, 110, 102, 0.95) 0%,
+    rgba(15, 23, 42, 0.95) 40%,
+    rgba(67, 56, 202, 0.9) 75%,
+    rgba(15, 118, 110, 0.95) 100%
+  );
+  background-size: 200% 200%;
+}
+
+.hologram-overlay {
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(255, 255, 255, 0.25),
+    transparent 70%
+  );
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-teal-500;
+}
+
+/* Card 3D Flip Utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}

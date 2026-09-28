@@ -1,0 +1,427 @@
+import React, { useState } from 'react';
+import {
+  Shield, Key, Lock, ArrowRight, Fingerprint, Dna, CheckCircle2,
+  FileCheck, Download, Building2, ShieldCheck, Sparkles, RefreshCw
+} from 'lucide-react';
+import { HealthIdCard } from '../components/HealthIdCard';
+import { PendingChainChip } from '../components/ChainBadge';
+import { PatientPersona } from '../mock/types';
+import { mockApi } from '../mock/api';
+
+interface LandingOnboardingPageProps {
+  onCompleteOnboarding: () => void;
+  onGoHospitalLogin: () => void;
+}
+
+export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
+  onCompleteOnboarding,
+  onGoHospitalLogin
+}) => {
+  const [view, setView] = useState<'landing' | 'onboarding'>('landing');
+  const [step, setStep] = useState<number>(1);
+
+  // Form states
+  const [name, setName] = useState('Rajesh Kumar');
+  const [dob, setDob] = useState('1974-05-14');
+  const [phone, setPhone] = useState('+91 98765 43210');
+  const [otp, setOtp] = useState(['5', '8', '2', '0', '1', '9']);
+  const [isScanningBiometrics, setIsScanningBiometrics] = useState(false);
+  const [biometricsDone, setBiometricsDone] = useState(false);
+  const [dnaSaltedHash, setDnaSaltedHash] = useState('0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f');
+  const [dnaOpen, setDnaOpen] = useState(false);
+
+  // Step 5 created persona state
+  const [createdPersona, setCreatedPersona] = useState<PatientPersona | null>(null);
+  const [isConfirmedOnChain, setIsConfirmedOnChain] = useState(false);
+
+  const handleOtpChange = (idx: number, val: string) => {
+    if (val.length > 1) val = val.slice(-1);
+    const newOtp = [...otp];
+    newOtp[idx] = val;
+    setOtp(newOtp);
+    // Auto-focus next input
+    if (val && idx < 5) {
+      const nextInput = document.getElementById(`otp-${idx + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleStartBiometricScan = () => {
+    setIsScanningBiometrics(true);
+    setTimeout(() => {
+      setIsScanningBiometrics(false);
+      setBiometricsDone(true);
+    }, 2000);
+  };
+
+  const handleFinalizeVault = async () => {
+    const p = await mockApi.getCurrentPatient();
+    setCreatedPersona({
+      ...p,
+      name: name || p.name,
+      dob: dob || p.dob,
+      phone: phone || p.phone,
+      dnaSaltedHash
+    });
+    setStep(5);
+
+    // Simulate "Pending on-chain" -> "Confirmed" after 2.5 seconds
+    setTimeout(() => {
+      setIsConfirmedOnChain(true);
+    }, 2500);
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-between">
+      {view === 'landing' ? (
+        /* LANDING VIEW */
+        <div className="space-y-16 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full animate-fade-in">
+          {/* Hero Section */}
+          <div className="text-center space-y-6 max-w-3xl mx-auto pt-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/80 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+              <span>Next-Gen Sovereign Health Identity</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              Your health records.{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-indigo-600">
+                Your consent.
+              </span>{' '}
+              Provably yours.
+            </h1>
+
+            <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+              MediVault combines biometric passkey encryption with a Polygon blockchain audit trail. Keep complete sovereignty over your medical history without sacrificing emergency care speed.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+              <button
+                onClick={() => setView('onboarding')}
+                className="px-8 py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-base shadow-lg shadow-teal-700/20 flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95"
+              >
+                <span>Create Your Vault</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={onGoHospitalLogin}
+                className="px-8 py-4 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-base border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 transition-all"
+              >
+                <Building2 className="w-5 h-5 text-indigo-600" />
+                <span>Hospital Portal Login</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Trust Strip */}
+          <div className="p-4 rounded-2xl bg-slate-900 text-white max-w-4xl mx-auto shadow-xl border border-slate-800 flex items-center justify-center gap-3 text-center text-xs font-mono">
+            <Lock className="w-4 h-4 text-teal-400 shrink-0" />
+            <span>Only SHA-256 integrity hashes go on-chain. Never your personal health data.</span>
+          </div>
+
+          {/* 3-Step Explainer Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-lg">
+                1
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Own Your Data</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                All prescriptions, lab reports, and self-declared logs are encrypted client-side using device hardware biometrics.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-lg">
+                2
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Granular Consent</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Grant hospitals 1-hour to 7-day access tiers (Emergency Profile vs Full History) with instant real-time revocation.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-lg">
+                3
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Immutable Verification</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Detect unauthorized record modifications or hospital tampering instantly using cryptographic zero-knowledge hashes.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* 5-STEP ONBOARDING FLOW */
+        <div className="max-w-2xl mx-auto w-full py-8 px-4 space-y-6 animate-fade-in">
+          {/* Top Stepper Header */}
+          <div className="space-y-2 text-center">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              {step === 5 ? 'Vault Enrolment Complete' : 'Create Sovereign MediVault'}
+            </h2>
+            <p className="text-xs text-slate-500">Step {step} of 5 — Cryptographic identity creation</p>
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-700 transition-all duration-500"
+                style={{ width: `${(step / 5) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+            {/* STEP 1: Basic Details */}
+            {step === 1 && (
+              <div className="space-y-4 animate-fade-in">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">1. Patient Profile Details</h3>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Full Legal Name</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">Mobile Number</label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-2"
+                  >
+                    <span>Proceed to OTP Verification</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: OTP (6 Boxes) */}
+            {step === 2 && (
+              <div className="space-y-6 text-center animate-fade-in">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">2. Mobile OTP Verification</h3>
+                  <p className="text-xs text-slate-500 mt-1">Sent to {phone}. Mock accepts any 6-digit code.</p>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                  {otp.map((val, idx) => (
+                    <input
+                      key={idx}
+                      id={`otp-${idx}`}
+                      type="text"
+                      maxLength={1}
+                      value={val}
+                      onChange={(e) => handleOtpChange(idx, e.target.value)}
+                      className="w-11 h-12 sm:w-12 sm:h-14 text-center font-mono font-bold text-xl rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                  ))}
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="text-xs text-slate-500 hover:text-slate-800"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setStep(3)}
+                    className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-2"
+                  >
+                    <span>Verify Code</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Fingerprint Enrolment */}
+            {step === 3 && (
+              <div className="space-y-6 text-center animate-fade-in">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">3. Biometric Device Passkey</h3>
+                  <p className="text-xs text-slate-500 mt-1">Enrol WebAuthn fingerprint scanner to seal vault private key.</p>
+                </div>
+
+                {/* Animated Fingerprint Box */}
+                <div className="relative w-36 h-36 mx-auto rounded-3xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shadow-2xl">
+                  {isScanningBiometrics && (
+                    <div className="absolute inset-x-0 h-1 bg-teal-400 shadow-glow-teal animate-scan-line z-20" />
+                  )}
+
+                  <Fingerprint
+                    className={`w-20 h-20 transition-all duration-300 ${
+                      biometricsDone
+                        ? 'text-emerald-400 scale-110'
+                        : isScanningBiometrics
+                        ? 'text-teal-400 animate-pulse'
+                        : 'text-slate-600'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  {!biometricsDone ? (
+                    <button
+                      onClick={handleStartBiometricScan}
+                      disabled={isScanningBiometrics}
+                      className="px-8 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg flex items-center gap-2 mx-auto disabled:opacity-50"
+                    >
+                      {isScanningBiometrics ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Scanning Biometrics...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="w-4 h-4" />
+                          <span>Use Device Biometrics</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/80 rounded-xl text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 max-w-xs mx-auto">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Fingerprint Key Pair Registered!</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setBiometricsDone(true)}
+                    className="text-[11px] text-slate-400 hover:underline block mx-auto pt-1"
+                  >
+                    Mock scan (Instant Pass)
+                  </button>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  <button onClick={() => setStep(2)} className="text-xs text-slate-500">Back</button>
+                  <button
+                    onClick={() => setStep(4)}
+                    disabled={!biometricsDone}
+                    className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <span>Proceed to DNA Hash</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: DNA Reference (Optional) */}
+            {step === 4 && (
+              <div className="space-y-6 animate-fade-in">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Dna className="w-5 h-5 text-indigo-600" />
+                    <span>4. DNA Reference Hash (Optional Prototype)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Stores only a 256-bit salted hash for future genetic record anchoring.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Salted Genomic Sequence Hash</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono">
+                      Salted SHA-256
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={dnaSaltedHash}
+                    onChange={(e) => setDnaSaltedHash(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-slate-800 dark:text-slate-200"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Prototype disclaimer: Genomic sequences are never stored raw. Only irreversible hashes are kept.
+                  </p>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  <button onClick={() => setStep(3)} className="text-xs text-slate-500">Back</button>
+                  <button
+                    onClick={handleFinalizeVault}
+                    className="px-8 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-2 shadow-lg"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Create Vault On-Chain</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 5: Vault Created Reveal */}
+            {step === 5 && createdPersona && (
+              <div className="space-y-6 text-center animate-fade-in">
+                <div className="space-y-1">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">MediVault Initialized!</h3>
+                  <p className="text-xs text-slate-500">Your health ID card and blockchain anchor are live.</p>
+                </div>
+
+                {/* Health ID Card Display */}
+                <HealthIdCard persona={createdPersona} />
+
+                {/* Pending / Confirmed On-Chain Status */}
+                <div className="pt-2">
+                  <PendingChainChip
+                    isConfirmed={isConfirmedOnChain}
+                    txHash="0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2"
+                  />
+                </div>
+
+                <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      alert('MediVault Health ID Card downloaded as PDF image payload.');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center gap-2 border border-slate-300 dark:border-slate-700"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download ID Card</span>
+                  </button>
+
+                  <button
+                    onClick={onCompleteOnboarding}
+                    className="px-8 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md flex items-center gap-2"
+                  >
+                    <span>Enter Patient Dashboard</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
