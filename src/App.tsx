@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { Toast } from './components/Toast';
 import { EmergencySheet } from './components/EmergencySheet';
 import { DemoToolsDrawer } from './components/DemoToolsDrawer';
+import { BackendVisualizerModal } from './components/BackendVisualizerModal';
 
 // Pages
 import { LandingOnboardingPage } from './pages/LandingOnboardingPage';
@@ -26,6 +27,7 @@ export function App() {
   const [activePersona, setActivePersona] = useState<PatientPersona | null>(null);
   const [reminders, setReminders] = useState<CheckupReminder[]>([]);
   const [emergencyOpen, setEmergencyOpen] = useState<boolean>(false);
+  const [backendVisualizerOpen, setBackendVisualizerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Load initial active persona & data
@@ -87,6 +89,7 @@ export function App() {
         activePersona={activePersona}
         isPatientLoggedIn={isPatientLoggedIn}
         onLogoutPatient={handleLogoutPatient}
+        onOpenBackendVisualizer={() => setBackendVisualizerOpen(true)}
       />
 
       {/* Main Content View Switcher */}
@@ -154,6 +157,12 @@ export function App() {
           persona={activePersona}
         />
       )}
+
+      {/* Live Backend & Smart Contract Visualizer Modal */}
+      <BackendVisualizerModal
+        isOpen={backendVisualizerOpen}
+        onClose={() => setBackendVisualizerOpen(false)}
+      />
 
       {/* Presenter Demo Toolbox Drawer (Ctrl+K) */}
       <DemoToolsDrawer
