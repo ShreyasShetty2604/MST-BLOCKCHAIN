@@ -33,6 +33,14 @@ test(17, 'Penicillin claim uses actual allergy record', () => { const r = answer
 test(18, 'Document verification', () => { const r = answer('Verify my HbA1c report.'); assert.equal(r.sources[0].recordId, 'rec-101'); assert.match(r.text, /Document hash:/); });
 test(19, 'Access reflects consent state', () => { const active = answer('What records can Dr. Sharma currently access?'); assert.equal(active.sources.length, records.length); const revoked = answer('What records can Dr. Sharma currently access?', INITIAL_CONSENTS.map(c => ({ ...c, status: 'revoked' as const }))); assert.equal(revoked.sources.length, 0); });
 test(20, 'Unsupported cancer claim', () => { const r = answer('I had cancer in 2021, right?'); assert.equal(r.sources.length, 0); assert.match(r.text, /CLAIM NOT DOCUMENTED/); });
+test(21, 'Patient vault isolation', () => {
+  const otherPatient = INITIAL_PERSONAS.find(persona => persona.id === 'persona-healthy')!;
+  const otherRecords = INITIAL_RECORDS[otherPatient.id];
+  const r = buildAssistantResponse('Show my latest HbA1c report', otherPatient, otherRecords, []);
+  assert.equal(r.sources.length, 0);
+  assert(!JSON.stringify(r).includes('rec-101'));
+  assert(!JSON.stringify(r).includes('HbA1c & Fasting Plasma Glucose Report'));
+});
 const variants = [
   'newest record', 'most recent record', 'latest medical record', 'newest report', 'most recent report',
   'latest blood report', 'show my latest lab report', 'HbA1c report', 'my HbA1c', 'fasting glucose report',
