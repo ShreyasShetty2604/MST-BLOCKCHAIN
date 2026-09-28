@@ -3,7 +3,6 @@ import {
   BadgeCheck, ShieldCheck, CheckCircle2, AlertTriangle, Loader2, Stethoscope, FileCheck, RefreshCw
 } from 'lucide-react';
 import { IntegrityResult, MedicalRecord } from '../../mock/types';
-import { DEMO_DOCTORS, DEMO_RECORDS } from '../../mock/medproofData';
 import { mockApi } from '../../mock/api';
 import { ChainBadge } from '../../components/ChainBadge';
 
@@ -20,6 +19,10 @@ export const VerificationTab: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const clinicians = Array.from(new Map(
+    records.filter((record) => record.doctor).map((record) => [record.doctor!, { name: record.doctor!, hospital: record.source }])
+  ).values());
 
   const handleRunVerification = async () => {
     setIsScanning(true);
@@ -75,9 +78,11 @@ export const VerificationTab: React.FC = () => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {DEMO_DOCTORS.map((doc) => (
+          {clinicians.length === 0 ? (
+            <p className="text-xs text-slate-500">No clinician-issued records are available in this vault.</p>
+          ) : clinicians.map((doc) => (
             <div
-              key={doc.id}
+              key={doc.name}
               className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3"
             >
               <div className="flex items-start justify-between">
@@ -92,19 +97,15 @@ export const VerificationTab: React.FC = () => {
                     </span>
                   </div>
                   <span className="text-xs text-slate-500 block mt-0.5">
-                    {doc.specialty} • {doc.hospital}
+                    Issuer on canonical records • {doc.hospital}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-1 text-[11px] font-mono text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex justify-between">
-                  <span>Registration:</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{doc.registrationNumber}</span>
-                </div>
                 <div className="flex justify-between items-center">
-                  <span>Credential Hash:</span>
-                  <span className="text-[10px] text-teal-600 dark:text-teal-400">{doc.verificationHash.slice(0, 14)}...</span>
+                  <span>Source:</span>
+                  <span className="text-[10px] text-teal-600 dark:text-teal-400">Canonical Medical Records</span>
                 </div>
               </div>
             </div>
@@ -116,11 +117,11 @@ export const VerificationTab: React.FC = () => {
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
           <FileCheck className="w-4 h-4 text-teal-600" />
-          <span>Synthetic Document Hashes & State</span>
+          <span>Canonical Document Hashes & State</span>
         </h2>
 
         <div className="space-y-3">
-          {DEMO_RECORDS.map((rec) => (
+          {records.map((rec) => (
             <div
               key={rec.id}
               className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs"
@@ -135,17 +136,17 @@ export const VerificationTab: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-500 block">
-                  Issuer: {rec.doctor} ({rec.hospital})
+                  Issuer: {rec.doctor || 'Not recorded'} ({rec.source})
                 </span>
                 <span className="font-mono text-[10px] text-slate-400 block">
-                  SHA-256 Hash: {rec.documentHash}
+                  SHA-256 Hash: {rec.hash}
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Unmodified & Verified</span>
+                  <span>{rec.status === 'verified' ? 'Unmodified & Verified' : rec.status}</span>
                 </span>
                 <ChainBadge txHash={rec.txHash} label="Block Audit" />
               </div>

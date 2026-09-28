@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "server": "node --experimental-strip-types server/index.ts",
-    "test": "node --experimental-strip-types tests/mediId.test.ts && node --experimental-strip-types tests/crypto.test.ts && node --experimental-strip-types tests/qrScanner.test.ts",
+    "test": "node --experimental-strip-types tests/mediId.test.ts && node --experimental-strip-types tests/crypto.test.ts && node --experimental-strip-types tests/qrScanner.test.ts && node --experimental-strip-types tests/assistant.test.ts",
+    "test:assistant": "node --experimental-strip-types tests/assistant.test.ts",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

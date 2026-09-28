@@ -1,4 +1,4 @@
-import { PatientPersona, MedicalRecord, Consent, AuditLog, Hospital, CheckupReminder, SystemStats, IncomingAccessRequest } from './types';
+import type { PatientPersona, MedicalRecord, Consent, AuditLog, Hospital, CheckupReminder, SystemStats, IncomingAccessRequest } from './types.ts';
 
 export const INITIAL_PERSONAS: PatientPersona[] = [
   {
