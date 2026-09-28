@@ -17,6 +17,7 @@ import { IdentitySecurityTab } from './pages/PatientApp/IdentitySecurityTab';
 import { RecordsTab } from './pages/PatientApp/RecordsTab';
 import { AccessTab } from './pages/PatientApp/AccessTab';
 import { AssistantTab } from './pages/PatientApp/AssistantTab';
+import { AssistantErrorBoundary } from './components/AssistantErrorBoundary';
 import { WellnessTab } from './pages/PatientApp/WellnessTab';
 import { HospitalPortalPage } from './pages/HospitalPortalPage';
 import { HospitalLandingPage, HospitalStaffSession } from './pages/HospitalLandingPage';
@@ -165,10 +166,12 @@ export function App() {
                 {patientTab === 'access' && <AccessTab />}
 
                 {patientTab === 'assistant' && (
-                  <AssistantTab
-                    persona={activePersona}
-                    onOpenEmergencyCard={() => setEmergencyOpen(true)}
-                  />
+                  <AssistantErrorBoundary>
+                    <AssistantTab
+                      persona={activePersona}
+                      onOpenEmergencyCard={() => setEmergencyOpen(true)}
+                    />
+                  </AssistantErrorBoundary>
                 )}
 
                 {patientTab === 'wellness' && (
