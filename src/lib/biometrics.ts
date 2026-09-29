@@ -65,8 +65,18 @@ export async function isPlatformBiometricAvailable(): Promise<boolean> {
 
 /**
  * Registers the device's hardware fingerprint / biometric scanner via WebAuthn.
- * Triggers native OS Touch ID / Windows Hello prompt.
+ *
+ * ⚠️  navigator.credentials.create() is ONLY called when ALL of the following are true:
+ *   1. VITE_ENABLE_HARDWARE_PASSKEY=true in env (off by default)
+ *   2. enrollmentMode is 'hardware' or 'auto' (not 'virtual')
+ *   3. isUserVerifyingPlatformAuthenticatorAvailable() returns true
+ * Without all three this function falls through to virtual enrollment immediately,
+ * preventing Chrome's QR-code / security-key dialog from ever appearing.
  */
+const HARDWARE_PASSKEY_ENABLED =
+  typeof import.meta !== 'undefined' &&
+  (import.meta as any).env?.VITE_ENABLE_HARDWARE_PASSKEY === 'true';
+
 export async function registerDeviceBiometric(params: {
   userName: string;
   userEmail?: string;
@@ -79,8 +89,10 @@ export async function registerDeviceBiometric(params: {
 }): Promise<BiometricRegistrationResult> {
   const mode = params.enrollmentMode || 'auto';
 
-  // If explicit virtual mode was chosen, skip WebAuthn hardware dialog entirely to prevent macOS Keychain collisions
-  if (mode !== 'virtual') {
+  // Guard 1: dev flag must be enabled. Guard 2: platform authenticator must exist.
+  // Both must pass before navigator.credentials.create is ever called —
+  // this prevents Chrome from showing the QR-code / security-key dialog.
+  if (HARDWARE_PASSKEY_ENABLED && mode !== 'virtual') {
     const hasPlatform = await isPlatformBiometricAvailable();
 
     if (hasPlatform && window.navigator?.credentials) {
@@ -206,53 +218,62 @@ export async function registerDeviceBiometric(params: {
 
 /**
  * Scans the device's hardware fingerprint / biometric scanner via WebAuthn assertion.
- * Triggers native OS Touch ID / Windows Hello prompt.
+ *
+ * ⚠️  navigator.credentials.get() is ONLY called when ALL of the following are true:
+ *   1. VITE_ENABLE_HARDWARE_PASSKEY=true in env (off by default)
+ *   2. isUserVerifyingPlatformAuthenticatorAvailable() returns true
+ * Without both, this function falls through to the simulated scan immediately,
+ * preventing Chrome's QR-code / security-key dialog from ever appearing.
  */
 export async function scanDeviceBiometric(expectedCredentialId?: string): Promise<BiometricVerificationResult> {
-  const hasPlatform = await isPlatformBiometricAvailable();
+  // Guard 1: dev flag must be enabled
+  if (HARDWARE_PASSKEY_ENABLED) {
+    // Guard 2: platform authenticator must actually exist on this device
+    const hasPlatform = await isPlatformBiometricAvailable();
 
-  if (hasPlatform && window.navigator?.credentials) {
-    try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+    if (hasPlatform && window.navigator?.credentials) {
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
 
-      const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
+        const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
 
-      const getOptions: CredentialRequestOptions = {
-        publicKey: {
-          challenge,
-          rpId: window.location.hostname,
-          userVerification: 'required', // Triggers physical Touch ID / biometric verification
-          timeout: 60000,
-          allowCredentials: credId ? [
-            {
-              id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
-              type: 'public-key' as const,
-              transports: ['internal' as AuthenticatorTransport]
-            }
-          ] : undefined
+        const getOptions: CredentialRequestOptions = {
+          publicKey: {
+            challenge,
+            rpId: window.location.hostname,
+            userVerification: 'required', // Triggers physical Touch ID / biometric verification
+            timeout: 60000,
+            allowCredentials: credId ? [
+              {
+                id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
+                type: 'public-key' as const,
+                transports: ['internal' as AuthenticatorTransport]
+              }
+            ] : undefined
+          }
+        };
+
+        const assertion = (await navigator.credentials.get(getOptions)) as PublicKeyCredential | null;
+
+        if (assertion) {
+          return {
+            success: true,
+            credentialId: assertion.id,
+            authenticatorType: 'platform-hardware'
+          };
         }
-      };
-
-      const assertion = (await navigator.credentials.get(getOptions)) as PublicKeyCredential | null;
-
-      if (assertion) {
-        return {
-          success: true,
-          credentialId: assertion.id,
-          authenticatorType: 'platform-hardware'
-        };
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError') {
+          return {
+            success: false,
+            authenticatorType: 'platform-hardware',
+            cancelled: true,
+            error: 'Touch ID / Fingerprint prompt was dismissed or cancelled.'
+          };
+        }
+        console.warn('[WebAuthn] Hardware scan assertion note:', err?.message || err);
       }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        return {
-          success: false,
-          authenticatorType: 'platform-hardware',
-          cancelled: true,
-          error: 'Touch ID / Fingerprint prompt was dismissed or cancelled.'
-        };
-      }
-      console.warn('[WebAuthn] Hardware scan assertion note:', err?.message || err);
     }
   }
 
