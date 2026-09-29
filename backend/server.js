@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { generateHealthId, verifyHealthIdFormat, hashHealthIdWithHMAC } from './healthId.js';
 import { encryptAndStoreRecord, decryptRecord, getRecordFromStorage, verifyRecordIntegrity } from './encryption.js';
 import { checkOnChainAccess, relayAddRecord, verifyHospitalSignature } from './relayerService.js';
-import { saveRecordToSupabase } from './supabaseClient.js';
+import { saveRecordToSupabase, saveUserToSupabase, saveFingerprintToSupabase, saveConsentToSupabase, saveAuditLogToSupabase } from './supabaseClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -198,6 +198,105 @@ app.post('/api/hospital/verify-signature', async (req, res) => {
 
     const verification = await verifyHospitalSignature(message, signature, hospitalAddress);
     res.json(verification);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 6. USER REGISTRATION & VAULT CREATION
+// ==========================================
+
+app.post('/api/users/register', async (req, res) => {
+  try {
+    const { name, dob, gender, phone, email, emergencyInfo } = req.body;
+    
+    // Generate Luhn MediID & HMAC peppered hash
+    const healthId = generateHealthId();
+    const hmacHash = hashHealthIdWithHMAC(healthId.formatted);
+    const vaultId = 'VLT-' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join('').toUpperCase();
+    const dnaSaltedHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+    const userData = {
+      vaultId,
+      mediId: healthId.formatted,
+      name: name || 'New Sovereign Patient',
+      dob: dob || '1995-06-20',
+      gender: gender || 'Other',
+      phone: phone || '+91 98765 00000',
+      email: email || 'patient@medivault.io',
+      dnaSaltedHash,
+      emergencyInfo: emergencyInfo || { bloodGroup: 'O+', allergies: [], conditions: [] }
+    };
+
+    // Save user profile to Supabase database
+    await saveUserToSupabase(userData);
+
+    res.json({
+      success: true,
+      vaultId,
+      mediId: healthId.formatted,
+      hmacHash,
+      dnaSaltedHash,
+      userData
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 7. FINGERPRINT & WEBAUTHN BIOMETRIC ENROLLMENT
+// ==========================================
+
+app.post('/api/biometrics/register', async (req, res) => {
+  try {
+    const { personaId, vaultId, credentialId, kind, label } = req.body;
+    if (!personaId || !credentialId) {
+      return res.status(400).json({ error: 'Missing personaId or credentialId' });
+    }
+
+    const credData = {
+      credentialId,
+      personaId,
+      vaultId: vaultId || 'VLT-8F29A31B72C1',
+      kind: kind || 'webauthn',
+      label: label || 'WebAuthn Fingerprint Enclave',
+      publicKeyHash: credentialId
+    };
+
+    // Save biometric credential token to Supabase table `fingerprint_credentials`
+    await saveFingerprintToSupabase(credData);
+
+    res.json({
+      success: true,
+      registeredAt: new Date().toISOString(),
+      credential: credData
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 8. CONSENT & AUDIT LOG SYNC
+// ==========================================
+
+app.post('/api/consents/sync', async (req, res) => {
+  try {
+    const consentData = req.body;
+    await saveConsentToSupabase(consentData);
+    res.json({ success: true, consent: consentData });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/audit-logs/sync', async (req, res) => {
+  try {
+    const auditData = req.body;
+    await saveAuditLogToSupabase(auditData);
+    res.json({ success: true, auditLog: auditData });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
