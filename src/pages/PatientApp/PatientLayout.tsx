@@ -37,11 +37,11 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
     <div className="flex-1 flex flex-col md:flex-row w-full pl-2 sm:pl-3 lg:pl-4 pr-4 sm:pr-6 lg:pr-8 py-6 gap-6">
       {/* DESKTOP SIDE PANEL (MATCHING MOCKUP DESIGN) */}
       <aside className="hidden md:flex flex-col w-72 shrink-0 space-y-4">
-        {/* PATIENT PROFILE DARK CARD */}
-        <div className="relative rounded-xl overflow-hidden bg-gradient-to-b from-slate-800 via-slate-850 to-slate-900 text-white p-6 border border-slate-700/80 shadow-md flex flex-col items-center justify-center text-center">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-500/10 via-transparent to-transparent pointer-events-none" />
+        {/* PATIENT PROFILE GREEN GLASS CARD */}
+        <div className="relative rounded-2xl overflow-hidden glass-panel p-6 flex flex-col items-center justify-center text-center">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/20 via-emerald-900/10 to-transparent pointer-events-none" />
           <div className="relative z-10 mb-3">
-            <div className="w-20 h-20 rounded-full border-2 border-slate-200/50 shadow-md overflow-hidden bg-slate-700 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full border-2 border-emerald-400/60 shadow-[0_0_15px_rgba(16,185,129,0.3)] overflow-hidden bg-emerald-950/80 flex items-center justify-center">
               <img
                 src={displayAvatar}
                 alt={displayName}
@@ -51,12 +51,12 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
-              <span className="text-2xl font-bold text-slate-200 uppercase">
+              <span className="text-2xl font-bold text-emerald-200 uppercase">
                 {displayName.charAt(0)}
               </span>
             </div>
           </div>
-          <h3 className="relative z-10 text-lg font-medium tracking-wide text-slate-100">
+          <h3 className="relative z-10 text-lg font-bold tracking-wide text-white drop-shadow-sm">
             {displayName}
           </h3>
         </div>
