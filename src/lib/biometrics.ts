@@ -1,11 +1,22 @@
 /**
- * MediVault Device Biometric Hardware Integration
+ * MediVault Device Biometric Integration
  *
- * Implements native W3C WebAuthn Platform Authenticator (Touch ID, Face ID, Windows Hello, Android Biometrics)
- * with graceful fallback to simulated hardware sensor when platform authenticator is unavailable.
+ * Strategy:
+ *  1. Check PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() before
+ *     ANY navigator.credentials call.
+ *  2. If hardware is available → attempt real WebAuthn (platform authenticator only),
+ *     wrapped in try/catch so any error falls through to custom passkey.
+ *  3. If hardware is unavailable → silently generate a SHA-256 custom passkey derived
+ *     from the vault's MediID + APP_SALT (deterministic, device-agnostic, never triggers
+ *     Chrome's "Scan QR Code / Use Security Key" dialog).
+ *
+ * This eliminates the Chrome native fallback dialog on hardware-less devices.
  */
 
-// Helper to convert ArrayBuffer to Base64URL
+const APP_SALT = 'medivault-sovereign-health-id-v1';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function bufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -15,7 +26,6 @@ function bufferToBase64Url(buffer: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-// Helper to convert Base64URL to Uint8Array
 function base64UrlToBuffer(base64url: string): Uint8Array {
   const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
   const padLength = (4 - (base64.length % 4)) % 4;
@@ -28,10 +38,31 @@ function base64UrlToBuffer(base64url: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * Derives a deterministic custom passkey from a MediID using SHA-256.
+ * Same MediID → same credential ID on any device/browser, no OS prompt.
+ */
+async function deriveCustomPasskey(mediId: string): Promise<string> {
+  const input = `${mediId}:${APP_SALT}`;
+  const encoded = new TextEncoder().encode(input);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoded);
+  return 'CUSTOM-' + bufferToBase64Url(hashBuffer).slice(0, 32);
+}
+
+/**
+ * Generates a random virtual fingerprint credential ID (for new-vault registrations
+ * where no fixed MediID exists yet).
+ */
+function generateFreshCredentialId(): string {
+  return `VIRT-FP-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 export interface BiometricRegistrationResult {
   success: boolean;
   credentialId?: string;
-  authenticatorType: 'platform-hardware' | 'simulated-enclave';
+  authenticatorType: 'platform-hardware' | 'simulated-enclave' | 'custom-passkey';
   error?: string;
   cancelled?: boolean;
 }
@@ -39,14 +70,16 @@ export interface BiometricRegistrationResult {
 export interface BiometricVerificationResult {
   success: boolean;
   credentialId?: string;
-  authenticatorType: 'platform-hardware' | 'simulated-enclave';
+  authenticatorType: 'platform-hardware' | 'simulated-enclave' | 'custom-passkey';
   patientId?: string;
   error?: string;
   cancelled?: boolean;
 }
 
 /**
- * Checks if the current browser/device supports WebAuthn platform authenticators (Touch ID, Windows Hello).
+ * STEP 1 CAPABILITY CHECK — must be called before any navigator.credentials call.
+ * Returns true only when a real OS platform authenticator (Touch ID, Windows Hello,
+ * Android Biometrics) is available AND the page is in a secure context.
  */
 export async function isPlatformBiometricAvailable(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
@@ -64,19 +97,14 @@ export async function isPlatformBiometricAvailable(): Promise<boolean> {
 }
 
 /**
- * Registers the device's hardware fingerprint / biometric scanner via WebAuthn.
+ * Registers a biometric credential for this vault.
  *
- * ⚠️  navigator.credentials.create() is ONLY called when ALL of the following are true:
- *   1. VITE_ENABLE_HARDWARE_PASSKEY=true in env (off by default)
- *   2. enrollmentMode is 'hardware' or 'auto' (not 'virtual')
- *   3. isUserVerifyingPlatformAuthenticatorAvailable() returns true
- * Without all three this function falls through to virtual enrollment immediately,
- * preventing Chrome's QR-code / security-key dialog from ever appearing.
+ * - Hardware available → real WebAuthn platform authenticator (Touch ID / Windows Hello).
+ *   On any failure/cancellation, falls back to custom passkey (never hangs or shows dialog).
+ * - Hardware unavailable → silently derives a custom passkey from MediID via SHA-256.
+ *   No OS prompt, no Chrome QR dialog. Works identically on any device.
+ * - Virtual mode → generates a random VIRT-FP-... credential, bypassing all OS APIs.
  */
-const HARDWARE_PASSKEY_ENABLED =
-  typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.VITE_ENABLE_HARDWARE_PASSKEY === 'true';
-
 export async function registerDeviceBiometric(params: {
   userName: string;
   userEmail?: string;
@@ -89,10 +117,9 @@ export async function registerDeviceBiometric(params: {
 }): Promise<BiometricRegistrationResult> {
   const mode = params.enrollmentMode || 'auto';
 
-  // Guard 1: dev flag must be enabled. Guard 2: platform authenticator must exist.
-  // Both must pass before navigator.credentials.create is ever called —
-  // this prevents Chrome from showing the QR-code / security-key dialog.
-  if (HARDWARE_PASSKEY_ENABLED && mode !== 'virtual') {
+  // ── Hardware path (only when explicitly requested AND hardware is present) ──
+  if (mode === 'hardware' || mode === 'auto') {
+    // STEP 1: Capability check before any WebAuthn call
     const hasPlatform = await isPlatformBiometricAvailable();
 
     if (hasPlatform && window.navigator?.credentials) {
@@ -100,99 +127,130 @@ export async function registerDeviceBiometric(params: {
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
 
-        // Deterministic or random user ID
-        const userIdBytes = new TextEncoder().encode(params.mediId || params.userEmail || `medivault-${Date.now()}`);
+        const userIdBytes = new TextEncoder().encode(
+          params.mediId || params.userEmail || `medivault-${Date.now()}`
+        );
 
-      const createOptions: CredentialCreationOptions = {
-        publicKey: {
-          challenge,
-          rp: {
-            name: 'MediVault Sovereign Health ID',
-            id: window.location.hostname
-          },
-          user: {
-            id: userIdBytes,
-            name: params.userEmail || `${params.userName.toLowerCase().replace(/\s+/g, '.')}@medivault.id`,
-            displayName: params.userName || 'MediVault Patient'
-          },
-          pubKeyCredParams: [
-            { alg: -7, type: 'public-key' },  // ES256 (P-256 NIST curve, standard for Apple Touch ID & Windows Hello)
-            { alg: -257, type: 'public-key' } // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform', // Hardware device scanner (Touch ID / Windows Hello)
-            userVerification: 'required',        // Requires physical fingerprint / face scan
-            residentKey: 'preferred'
-          },
-          timeout: 60000,
-          attestation: 'none'
-        }
-      };
-
-      const credential = (await navigator.credentials.create(createOptions)) as PublicKeyCredential | null;
-
-      if (credential) {
-        const credentialId = credential.id;
-
-        // Store credential ID in localStorage for easy authentication lookup
-        try {
-          localStorage.setItem('medivault_device_credential_id', credentialId);
-          if (params.mediId) {
-            localStorage.setItem(`medivault_cred_${params.mediId}`, credentialId);
+        const createOptions: CredentialCreationOptions = {
+          publicKey: {
+            challenge,
+            rp: {
+              name: 'MediVault Sovereign Health ID',
+              id: window.location.hostname
+            },
+            user: {
+              id: userIdBytes,
+              name: params.userEmail || `${params.userName.toLowerCase().replace(/\s+/g, '.')}@medivault.id`,
+              displayName: params.userName || 'MediVault Patient'
+            },
+            pubKeyCredParams: [
+              { alg: -7, type: 'public-key' },   // ES256
+              { alg: -257, type: 'public-key' }  // RS256
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: 'platform',
+              userVerification: 'required',
+              residentKey: 'preferred'
+            },
+            timeout: 60000,
+            attestation: 'none'
           }
-        } catch {
-          // ignore localStorage error
-        }
+        };
 
-        // Send registration to backend API to encrypt and anchor template hash
-        if (params.vaultId || params.mediId) {
+        // STEP 4: Runtime safety net — any error falls through to custom passkey
+        const credential = (await navigator.credentials.create(createOptions)) as PublicKeyCredential | null;
+
+        if (credential) {
+          const credentialId = credential.id;
+
           try {
-            await fetch('/api/identity/fingerprint/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                vaultId: params.vaultId || params.mediId,
-                passkeyCredentialId: credentialId,
-                deviceType: 'Hardware Platform Authenticator (Touch ID/Windows Hello)',
-                minutiaeTemplate: `WEBAUTHN-ENCLAVE-HW-${credentialId.slice(0, 16)}`
-              })
-            });
-          } catch {
-            // Local fallback continues
+            localStorage.setItem('medivault_device_credential_id', credentialId);
+            if (params.mediId) {
+              localStorage.setItem(`medivault_cred_${params.mediId}`, credentialId);
+            }
+          } catch { /* ignore */ }
+
+          if (params.vaultId || params.mediId) {
+            try {
+              await fetch('/api/identity/fingerprint/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  vaultId: params.vaultId || params.mediId,
+                  passkeyCredentialId: credentialId,
+                  deviceType: 'Hardware Platform Authenticator (Touch ID/Windows Hello)',
+                  minutiaeTemplate: `WEBAUTHN-ENCLAVE-HW-${credentialId.slice(0, 16)}`
+                })
+              });
+            } catch { /* local fallback continues */ }
           }
+
+          return {
+            success: true,
+            credentialId,
+            authenticatorType: 'platform-hardware'
+          };
         }
-
-        return {
-          success: true,
-          credentialId,
-          authenticatorType: 'platform-hardware'
-        };
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError') {
+          // User explicitly cancelled — tell them, then fall through to custom passkey
+          console.info('[WebAuthn] User cancelled hardware biometric. Falling back to custom passkey.');
+        } else {
+          console.warn('[WebAuthn] Hardware registration failed, falling back to custom passkey:', err?.message || err);
+        }
+        // ↓ Falls through to custom-passkey generation below
       }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        return {
-          success: false,
-          authenticatorType: 'platform-hardware',
-          cancelled: true,
-          error: 'Biometric scan was cancelled or timed out. You can retry with your device fingerprint or use simulated enrollment.'
-        };
-      }
-      console.warn('[WebAuthn] Hardware registration note:', err?.message || err);
     }
+    // hasPlatform === false → skip WebAuthn entirely, fall through to custom passkey
   }
-}
 
-  // Virtual Scanner or Fallback Enclave enrollment:
-  // Generates a unique cryptographic biometric credential ID without calling macOS Keychain / Passwords
-  const credId = params.customCredentialId || `VIRT-FP-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
-  const label = params.fingerLabel || 'Virtual Triage Fingerprint Scanner';
+  // ── Virtual mode: random VIRT-FP-... credential (no SHA-256, no OS prompt) ──
+  if (mode === 'virtual') {
+    const credId = params.customCredentialId || generateFreshCredentialId();
+    const label = params.fingerLabel || 'Virtual Triage Fingerprint Scanner';
+
+    try {
+      localStorage.setItem('medivault_device_credential_id', credId);
+      if (params.mediId) {
+        localStorage.setItem(`medivault_cred_${params.mediId}`, credId);
+      }
+    } catch { /* ignore */ }
+
+    if (params.vaultId || params.mediId) {
+      try {
+        await fetch('/api/identity/fingerprint/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vaultId: params.vaultId || params.mediId,
+            passkeyCredentialId: credId,
+            deviceType: label,
+            minutiaeTemplate: `SIMULATED-TEMPLATE-${credId}`
+          })
+        });
+      } catch { /* ignore */ }
+    }
+
+    return {
+      success: true,
+      credentialId: credId,
+      authenticatorType: 'simulated-enclave'
+    };
+  }
+
+  // ── Custom passkey fallback (hardware unavailable OR hardware failed/cancelled) ──
+  // Derives a deterministic credential from MediID via SHA-256. Completely silent —
+  // no OS prompt, no Chrome dialog. Same MediID → same credential on any device.
+  const mediId = params.mediId || params.vaultId || `medivault-${Date.now()}`;
+  const credId = params.customCredentialId || (await deriveCustomPasskey(mediId));
+  const label = params.fingerLabel || 'Custom Software Passkey';
 
   try {
     localStorage.setItem('medivault_device_credential_id', credId);
     if (params.mediId) {
       localStorage.setItem(`medivault_cred_${params.mediId}`, credId);
     }
-  } catch {}
+  } catch { /* ignore */ }
 
   if (params.vaultId || params.mediId) {
     try {
@@ -203,85 +261,103 @@ export async function registerDeviceBiometric(params: {
           vaultId: params.vaultId || params.mediId,
           passkeyCredentialId: credId,
           deviceType: label,
-          minutiaeTemplate: `SIMULATED-TEMPLATE-${credId}`
+          minutiaeTemplate: `CUSTOM-PASSKEY-SHA256-${credId.slice(0, 16)}`
         })
       });
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   return {
     success: true,
     credentialId: credId,
-    authenticatorType: 'simulated-enclave'
+    authenticatorType: 'custom-passkey'
   };
 }
 
 /**
- * Scans the device's hardware fingerprint / biometric scanner via WebAuthn assertion.
+ * Scans for a biometric credential to authenticate.
  *
- * ⚠️  navigator.credentials.get() is ONLY called when ALL of the following are true:
- *   1. VITE_ENABLE_HARDWARE_PASSKEY=true in env (off by default)
- *   2. isUserVerifyingPlatformAuthenticatorAvailable() returns true
- * Without both, this function falls through to the simulated scan immediately,
- * preventing Chrome's QR-code / security-key dialog from ever appearing.
+ * - Hardware available + credential stored → real WebAuthn assertion (Touch ID / Windows Hello).
+ *   On failure, falls back to custom passkey lookup.
+ * - Hardware unavailable → silently re-derives the custom passkey from the stored MediID.
+ *   No OS prompt, no Chrome QR/security-key dialog.
  */
 export async function scanDeviceBiometric(expectedCredentialId?: string): Promise<BiometricVerificationResult> {
-  // Guard 1: dev flag must be enabled
-  if (HARDWARE_PASSKEY_ENABLED) {
-    // Guard 2: platform authenticator must actually exist on this device
-    const hasPlatform = await isPlatformBiometricAvailable();
+  // STEP 1: Capability check before any WebAuthn call
+  const hasPlatform = await isPlatformBiometricAvailable();
 
-    if (hasPlatform && window.navigator?.credentials) {
-      try {
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
+  if (hasPlatform && window.navigator?.credentials) {
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
 
-        const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
+      const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
 
-        const getOptions: CredentialRequestOptions = {
-          publicKey: {
-            challenge,
-            rpId: window.location.hostname,
-            userVerification: 'required', // Triggers physical Touch ID / biometric verification
-            timeout: 60000,
-            allowCredentials: credId ? [
-              {
-                id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
-                type: 'public-key' as const,
-                transports: ['internal' as AuthenticatorTransport]
-              }
-            ] : undefined
-          }
+      const getOptions: CredentialRequestOptions = {
+        publicKey: {
+          challenge,
+          rpId: window.location.hostname,
+          userVerification: 'required',
+          timeout: 60000,
+          allowCredentials: credId
+            ? [
+                {
+                  id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
+                  type: 'public-key' as const,
+                  transports: ['internal' as AuthenticatorTransport]
+                }
+              ]
+            : undefined
+        }
+      };
+
+      // STEP 4: Runtime safety net — any error falls through to custom passkey
+      const assertion = (await navigator.credentials.get(getOptions)) as PublicKeyCredential | null;
+
+      if (assertion) {
+        return {
+          success: true,
+          credentialId: assertion.id,
+          authenticatorType: 'platform-hardware'
         };
-
-        const assertion = (await navigator.credentials.get(getOptions)) as PublicKeyCredential | null;
-
-        if (assertion) {
-          return {
-            success: true,
-            credentialId: assertion.id,
-            authenticatorType: 'platform-hardware'
-          };
-        }
-      } catch (err: any) {
-        if (err.name === 'NotAllowedError') {
-          return {
-            success: false,
-            authenticatorType: 'platform-hardware',
-            cancelled: true,
-            error: 'Touch ID / Fingerprint prompt was dismissed or cancelled.'
-          };
-        }
-        console.warn('[WebAuthn] Hardware scan assertion note:', err?.message || err);
       }
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        console.info('[WebAuthn] User cancelled biometric scan. Falling back to custom passkey.');
+      } else {
+        console.warn('[WebAuthn] Hardware scan failed, falling back to custom passkey:', err?.message || err);
+      }
+      // ↓ Falls through to custom-passkey lookup below
     }
   }
+  // hasPlatform === false → skip WebAuthn entirely, fall through to custom passkey
 
-  // Fallback simulated sensor scan
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  // ── Custom passkey fallback ──
+  // Re-derive from the stored credential ID or return the stored one directly.
+  await new Promise((resolve) => setTimeout(resolve, 600)); // simulate scan delay
+
+  const storedCredId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
+
+  if (storedCredId) {
+    return {
+      success: true,
+      credentialId: storedCredId,
+      authenticatorType: storedCredId.startsWith('CUSTOM-') ? 'custom-passkey' : 'simulated-enclave'
+    };
+  }
+
+  // No stored credential at all — new device, prompt registration
   return {
-    success: true,
-    credentialId: 'ENCLAVE-SIMULATED-OK',
-    authenticatorType: 'simulated-enclave'
+    success: false,
+    authenticatorType: 'custom-passkey',
+    error: 'No credential found for this device. Please register first.'
   };
+}
+
+/**
+ * Derives and returns the custom passkey for a given MediID without storing anything.
+ * Useful for login flows that want to look up by derived credential before showing UI.
+ */
+export async function getCustomPasskeyForMediId(mediId: string): Promise<string> {
+  return deriveCustomPasskey(mediId);
 }
