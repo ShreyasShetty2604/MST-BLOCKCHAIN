@@ -142,7 +142,12 @@ export function App() {
           ) : (
             /* AUTHENTICATED PATIENT APP */
             activePersona && (
-              <PatientLayout activeTab={patientTab} onTabChange={setPatientTab}>
+              <PatientLayout
+                activeTab={patientTab}
+                onTabChange={setPatientTab}
+                persona={activePersona}
+                onOpenBackendVisualizer={() => setBackendVisualizerOpen(true)}
+              >
                 {patientTab === 'home' && (
                   <HomeTab
                     persona={activePersona}

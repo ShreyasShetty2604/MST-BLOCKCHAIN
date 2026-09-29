@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="w-full pl-2 sm:pl-3 lg:pl-4 pr-4 sm:pr-6 lg:pr-8 h-16 flex items-center justify-between gap-4">
         {/* Logo & ID Brand */}
         <div className="flex items-center gap-3">
           {/* Official Emblem Icon */}
@@ -106,18 +106,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions: Persona indicator, Backend Visualizer, Lock button & Dark Mode */}
         <div className="flex items-center gap-2.5">
-          {/* Universal Optical Camera QR Scanner Trigger */}
-          {onOpenScanner && (
-            <button
-              onClick={onOpenScanner}
-              className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-xs cursor-pointer"
-              title="Open Optical QR Camera Scanner"
-            >
-              <Camera className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="hidden sm:inline">Scan QR</span>
-            </button>
-          )}
-
           {/* Backend Visualizer Trigger Button */}
           {onOpenBackendVisualizer && (
             <button
