@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { generateHealthId, verifyHealthIdFormat, hashHealthIdWithHMAC } from './healthId.js';
 import { encryptAndStoreRecord, decryptRecord, getRecordFromStorage, verifyRecordIntegrity } from './encryption.js';
 import { checkOnChainAccess, relayAddRecord, verifyHospitalSignature } from './relayerService.js';
+import { saveRecordToSupabase } from './supabaseClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +89,9 @@ app.post('/api/records/upload', async (req, res) => {
 
     // 1. Encrypt record with AES-256-GCM and store in local storage (mock Pinata IPFS)
     const { fileId, storageUri, payloadHash, recordPackage } = encryptAndStoreRecord(plaintextData, vaultId);
+
+    // Sync encrypted payload asynchronously to Supabase Postgres database
+    saveRecordToSupabase({ fileId, vaultId, payloadHash, recordPackage });
 
     // 2. Relay payload hash to smart contract on-chain
     const relayResult = await relayAddRecord(
