@@ -283,15 +283,19 @@ export async function registerDeviceBiometric(params: {
  *   No OS prompt, no Chrome QR/security-key dialog.
  */
 export async function scanDeviceBiometric(expectedCredentialId?: string): Promise<BiometricVerificationResult> {
-  // STEP 1: Capability check before any WebAuthn call
+  // CRITICAL: Resolve the stored credentialId FIRST, before any WebAuthn call.
+  // Calling navigator.credentials.get() WITHOUT a specific allowCredentials entry triggers
+  // the browser's passkey picker UI (Safari "Sign In / Scan QR" dialog, Chrome passkey sheet)
+  // even when a platform authenticator is present. We must NEVER pass allowCredentials: undefined.
+  const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
+
+  // STEP 1: Capability check + stored credential check before any WebAuthn call
   const hasPlatform = await isPlatformBiometricAvailable();
 
-  if (hasPlatform && window.navigator?.credentials) {
+  if (hasPlatform && credId && window.navigator?.credentials) {
     try {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
-
-      const credId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
 
       const getOptions: CredentialRequestOptions = {
         publicKey: {
@@ -299,15 +303,14 @@ export async function scanDeviceBiometric(expectedCredentialId?: string): Promis
           rpId: window.location.hostname,
           userVerification: 'required',
           timeout: 60000,
-          allowCredentials: credId
-            ? [
-                {
-                  id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
-                  type: 'public-key' as const,
-                  transports: ['internal' as AuthenticatorTransport]
-                }
-              ]
-            : undefined
+          // Always pass the specific credentialId. Never leave allowCredentials undefined.
+          allowCredentials: [
+            {
+              id: base64UrlToBuffer(credId).buffer as ArrayBuffer,
+              type: 'public-key' as const,
+              transports: ['internal' as AuthenticatorTransport]
+            }
+          ]
         }
       };
 
@@ -330,23 +333,21 @@ export async function scanDeviceBiometric(expectedCredentialId?: string): Promis
       // ↓ Falls through to custom-passkey lookup below
     }
   }
-  // hasPlatform === false → skip WebAuthn entirely, fall through to custom passkey
+  // hasPlatform===false OR no credId stored → skip WebAuthn entirely, no browser dialog shown
 
-  // ── Custom passkey fallback ──
-  // Re-derive from the stored credential ID or return the stored one directly.
+  // ── Custom passkey / simulated fallback ──
+  // Silently return the stored credential. No OS prompt, no browser dialog.
   await new Promise((resolve) => setTimeout(resolve, 600)); // simulate scan delay
 
-  const storedCredId = expectedCredentialId || localStorage.getItem('medivault_device_credential_id');
-
-  if (storedCredId) {
+  if (credId) {
     return {
       success: true,
-      credentialId: storedCredId,
-      authenticatorType: storedCredId.startsWith('CUSTOM-') ? 'custom-passkey' : 'simulated-enclave'
+      credentialId: credId,
+      authenticatorType: credId.startsWith('CUSTOM-') ? 'custom-passkey' : 'simulated-enclave'
     };
   }
 
-  // No stored credential at all — new device, prompt registration
+  // No credential stored at all on this device — first-time visitor, needs registration
   return {
     success: false,
     authenticatorType: 'custom-passkey',
