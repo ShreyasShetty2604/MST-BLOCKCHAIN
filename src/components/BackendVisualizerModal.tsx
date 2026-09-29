@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Server, Cpu, ShieldCheck, Database, Terminal, Activity, Network, ArrowRight, X, ExternalLink, RefreshCw, CheckCircle2, Lock
 } from 'lucide-react';
 import { DEPLOYED_CONTRACTS, MEDIVAULT_MASTER_ADDRESS } from '../contracts/contractAbi';
+import { packetLogger, PacketLogEntry } from '../lib/packetLogger';
 
 interface BackendVisualizerModalProps {
   isOpen: boolean;
@@ -11,6 +12,14 @@ interface BackendVisualizerModalProps {
 
 export const BackendVisualizerModal: React.FC<BackendVisualizerModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'architecture' | 'api-routes' | 'smart-contracts' | 'live-console'>('architecture');
+  const [liveLogs, setLiveLogs] = useState<PacketLogEntry[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = packetLogger.subscribe((logs) => {
+      setLiveLogs(logs);
+    });
+    return () => unsubscribe();
+  }, []);
 
   if (!isOpen) return null;
 
@@ -261,26 +270,42 @@ export const BackendVisualizerModal: React.FC<BackendVisualizerModalProps> = ({ 
             <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono space-y-3 animate-fade-in">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-slate-400 text-[11px]">
                 <span className="flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-teal-400" />
-                  <span>Real-Time Backend HTTP & Smart Contract Log Stream</span>
+                  <Terminal className="w-4 h-4 text-emerald-400" />
+                  <span>Real-Time Backend HTTP & MST Testnet Contract Event Stream</span>
                 </span>
-                <span className="text-emerald-400">● LIVE (300ms polling)</span>
+                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE LOGGING ACTIVE
+                </span>
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto text-[11px]">
-                {mockApiLogs.map((log, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800/80">
-                    <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-bold">{log.method}</span>
-                      <span className="text-slate-200">{log.path}</span>
-                      <span className="text-slate-500 text-[10px]">({log.note})</span>
+              <div className="space-y-2 max-h-72 overflow-y-auto text-[11px]">
+                {liveLogs.map((log) => (
+                  <div key={log.id} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          [{log.stage}]
+                        </span>
+                        <span className="text-white font-bold">{log.summary}</span>
+                      </div>
+                      <span className="text-slate-400 text-[10px] font-mono">{log.time}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-teal-400">{log.latency}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[10px]">
-                        {log.status} OK
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                      <span className="font-mono text-emerald-400/90 truncate max-w-sm">
+                        Tx/Hash: {log.hash}
+                      </span>
+                      <span className="text-emerald-300 font-semibold font-mono">
+                        Block #{log.block || 4819520} • {log.status}
                       </span>
                     </div>
+
+                    {log.details && (
+                      <p className="text-[10px] text-slate-400/80 leading-relaxed border-t border-slate-800/60 pt-1 mt-1">
+                        {log.details}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
