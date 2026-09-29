@@ -339,28 +339,28 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in text-emerald-100 font-sans">
       {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-6 rounded-3xl glass-panel shadow-card border border-emerald-500/30">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-teal-50 dark:bg-teal-950 rounded-2xl text-teal-700 dark:text-teal-300">
+          <div className="p-3 bg-emerald-950 rounded-2xl text-emerald-300 border border-emerald-500/40">
             <Building2 className="w-8 h-8" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+              <h1 className="text-xl font-bold text-white">
                 {session?.facilityName || 'City General Hospital Portal'}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
                 Approved Provider
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-mono mt-0.5 flex flex-wrap items-center gap-2">
+            <p className="text-xs text-emerald-200/70 font-mono mt-0.5 flex flex-wrap items-center gap-2">
               <span>{session?.staffName ? `${session.staffName} (${session.staffRole || 'Duty Physician'})` : 'Dr. A. R. Mehta'}</span>
               <span>•</span>
               <span>Wallet: {session?.walletAddress ? `${session.walletAddress.slice(0, 6)}...${session.walletAddress.slice(-4)}` : '0x71C7...976F'}</span>
               <span>•</span>
-              <span className="text-teal-600 dark:text-teal-400 font-sans font-semibold">MST Testnet (91562037)</span>
+              <span className="text-emerald-400 font-sans font-semibold">MST Testnet (91562037)</span>
             </p>
           </div>
         </div>

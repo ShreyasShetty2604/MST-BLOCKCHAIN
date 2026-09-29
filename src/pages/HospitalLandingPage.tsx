@@ -141,12 +141,12 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-full flex-1 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 animate-fade-in">
+    <div className="min-h-full flex-1 bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#022c22] text-emerald-100 animate-fade-in font-sans">
       {/* Institutional Hero Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-teal-900/10 via-slate-900/5 to-transparent dark:from-teal-950/40 dark:via-slate-950/60 dark:to-slate-950 border-b border-slate-200 dark:border-slate-800 py-12 px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-emerald-950/40 border-b border-emerald-500/20 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10">
           <div className="space-y-5 max-w-2xl text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-950/80 border border-teal-300 dark:border-teal-800 text-teal-900 dark:text-teal-300 text-xs font-bold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/60 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
               <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               <span>MediVault Institutional Healthcare Gateway</span>
             </div>
@@ -178,7 +178,7 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
               <button
                 type="button"
                 onClick={onGoBack}
-                className="px-6 py-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm border border-slate-300 dark:border-slate-800 transition-all cursor-pointer"
+                className="px-6 py-3.5 rounded-2xl glass-panel hover:border-emerald-400 text-emerald-200 font-bold text-xs sm:text-sm transition-all cursor-pointer"
               >
                 Back to Citizen Portal
               </button>
@@ -186,55 +186,55 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
           </div>
 
           {/* Quick Facility Card Highlights */}
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-2xl border border-emerald-500/30 space-y-4">
+            <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-300/80">
                 Institutional Node Status
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 MST Testnet Synced
               </span>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-900/40 border border-emerald-500/20">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400">
+                  <div className="p-2 rounded-xl bg-teal-950 text-teal-300">
                     <QrCode className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">Contactless Optical Triage</span>
-                    <span className="text-[11px] text-slate-500">Scan patient MediID in under 0.8s</span>
+                    <span className="font-bold text-white block">Contactless Optical Triage</span>
+                    <span className="text-[11px] text-emerald-200/70">Scan patient MediID in under 0.8s</span>
                   </div>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-900/40 border border-emerald-500/20">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                  <div className="p-2 rounded-xl bg-emerald-950 text-emerald-300">
                     <Fingerprint className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">Desk Hardware Biometrics</span>
-                    <span className="text-[11px] text-slate-500">Enroll new walk-in patient passkeys</span>
+                    <span className="font-bold text-white block">Desk Hardware Biometrics</span>
+                    <span className="text-[11px] text-emerald-200/70">Enroll new walk-in patient passkeys</span>
                   </div>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-900/40 border border-emerald-500/20">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400">
+                  <div className="p-2 rounded-xl bg-rose-950/60 text-rose-300">
                     <ShieldAlert className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">Emergency Break-Glass</span>
-                    <span className="text-[11px] text-slate-500">Life-saving audit-logged overrides</span>
+                    <span className="font-bold text-white block">Emergency Break-Glass</span>
+                    <span className="text-[11px] text-emerald-200/70">Life-saving audit-logged overrides</span>
                   </div>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
             </div>
           </div>
