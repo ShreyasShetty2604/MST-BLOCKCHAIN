@@ -27,6 +27,17 @@ try {
   console.warn('Warning: mock_llm_responses.json not loaded, fallback enabled');
 }
 
+// Root status route
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    app: 'MediVault Backend Core Service',
+    network: 'MST Testnet (Chain ID: 91562037)',
+    healthCheck: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
