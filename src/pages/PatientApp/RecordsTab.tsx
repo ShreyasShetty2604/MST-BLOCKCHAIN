@@ -327,7 +327,7 @@ export const RecordsTab: React.FC = () => {
               </div>
 
               <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl border border-teal-200 dark:border-teal-900 text-[11px] text-teal-900 dark:text-teal-200">
-                🔒 Protected by AES-256-GCM authenticated encryption. SHA-256 integrity hash is anchored directly on Polygon Amoy.
+                🔒 Protected by AES-256-GCM authenticated encryption. SHA-256 integrity hash is anchored directly on MST Testnet (Chain ID: 91562037).
               </div>
 
               <div className="pt-3 flex justify-end gap-2">

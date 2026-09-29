@@ -59,7 +59,7 @@ export const ChainBadge: React.FC<ChainBadgeProps> = ({
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-900 dark:text-white">Blockchain Audit Trail</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Immutable Polygon Amoy Verification</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Immutable MST Testnet Verification</p>
                 </div>
               </div>
               <button
@@ -104,7 +104,7 @@ export const ChainBadge: React.FC<ChainBadgeProps> = ({
                   </div>
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                     <span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-sans">Network</span>
-                    <span className="text-slate-900 dark:text-slate-100 font-semibold mt-1 block">Polygon Amoy</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-semibold mt-1 block">MST Testnet</span>
                   </div>
                 </div>
 
@@ -124,12 +124,12 @@ export const ChainBadge: React.FC<ChainBadgeProps> = ({
 
             <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
               <a
-                href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                href={`https://mst-blockchain.onrender.com`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-md transition-colors"
               >
-                <span>View on PolygonScan</span>
+                <span>View on MST Explorer</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>

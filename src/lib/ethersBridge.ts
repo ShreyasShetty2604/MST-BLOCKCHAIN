@@ -1,9 +1,9 @@
 // Default RPC fallbacks
 const LOCAL_HARDHAT_RPC = 'http://127.0.0.1:8545';
-const AMOY_PUBLIC_RPC = 'https://rpc-amoy.polygon.technology';
+const MST_TESTNET_RPC = 'https://rpc-testnet.mstchain.io';
 
 export const ethersBridge = {
-  // Get provider (attempts local hardhat node, then Amoy testnet, then fallback)
+  // Get provider (attempts local hardhat node, then MST testnet, then fallback)
   getProvider: async (): Promise<any> => {
     try {
       // @ts-ignore
@@ -15,7 +15,7 @@ export const ethersBridge = {
       try {
         // @ts-ignore
         const { ethers } = await import(/* @vite-ignore */ 'ethers');
-        return new ethers.JsonRpcProvider(AMOY_PUBLIC_RPC);
+        return new ethers.JsonRpcProvider(MST_TESTNET_RPC);
       } catch {
         return null;
       }
@@ -32,14 +32,14 @@ export const ethersBridge = {
 
       return {
         blockNumber,
-        networkName: Number(network.chainId) === 31337 ? 'Hardhat Local Fallback' : 'Polygon Amoy Testnet',
+        networkName: Number(network.chainId) === 31337 ? 'Hardhat Local Fallback' : 'MST Testnet',
         chainId: Number(network.chainId)
       };
     } catch {
       return {
         blockNumber: 4819204,
-        networkName: 'Polygon Amoy Testnet (Simulated)',
-        chainId: 80002
+        networkName: 'MST Testnet (Chain ID: 91562037)',
+        chainId: 91562037
       };
     }
   },

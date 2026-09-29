@@ -210,7 +210,7 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
               ⚠ Cryptographic Integrity Check Failed
             </span>
             <p>
-              An off-chain record hash does not match the on-chain anchor on Polygon Amoy. The ciphertext on disk may have been tampered with or corrupted.
+              An off-chain record hash does not match the on-chain anchor on MST Testnet. The ciphertext on disk may have been tampered with or corrupted.
             </p>
             <div className="pt-1 font-mono text-[11px] text-rose-800 dark:text-rose-300">
               AES-256-GCM Authenticated Tag: <span className="font-bold text-rose-600">FAILED (Tag Mismatch)</span>
@@ -416,7 +416,7 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block font-mono">
             SECURITY & BLOCKCHAIN INTEGRITY
           </span>
-          <span className="text-[10px] font-mono text-slate-400">Chain: Polygon Amoy</span>
+          <span className="text-[10px] font-mono text-emerald-300">Chain: MST Testnet (91562037)</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

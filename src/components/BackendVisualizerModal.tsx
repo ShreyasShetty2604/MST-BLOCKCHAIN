@@ -160,7 +160,7 @@ export const BackendVisualizerModal: React.FC<BackendVisualizerModalProps> = ({ 
                   </div>
                   <h4 className="font-bold text-white text-sm">4. Blockchain Receipt</h4>
                   <p className="text-[11px] text-slate-400">
-                    Emits event (`RecordAdded`, `ConsentGranted`) on Polygon Amoy.
+                    Emits event (`RecordAdded`, `ConsentGranted`) on MST Testnet (Chain ID: 91562037).
                   </p>
                 </div>
               </div>

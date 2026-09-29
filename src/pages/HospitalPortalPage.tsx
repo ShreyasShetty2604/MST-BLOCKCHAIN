@@ -360,7 +360,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
               <span>•</span>
               <span>Wallet: {session?.walletAddress ? `${session.walletAddress.slice(0, 6)}...${session.walletAddress.slice(-4)}` : '0x71C7...976F'}</span>
               <span>•</span>
-              <span className="text-teal-600 dark:text-teal-400 font-sans font-semibold">Polygon Amoy</span>
+              <span className="text-teal-600 dark:text-teal-400 font-sans font-semibold">MST Testnet (91562037)</span>
             </p>
           </div>
         </div>
@@ -698,7 +698,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
             <div className="p-4 rounded-2xl bg-rose-600 text-white font-bold text-xs shadow-glow-red flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-white animate-pulse" />
-                <span>EMERGENCY ACCESS ACTIVE — PERMANENTLY LOGGED ON POLYGON TESTNET (Tx: 0xe5f6...5682)</span>
+                <span>EMERGENCY ACCESS ACTIVE — PERMANENTLY LOGGED ON MST TESTNET (Tx: 0xe5f6...5682)</span>
               </div>
               <ChainBadge txHash="0xe5f6a1b2c3d47890123456789abcdef012345682" label="Audit Hash" />
             </div>
@@ -1042,7 +1042,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
                     Hospital Triage: Register New Patient
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    City General Triage Desk • Polygon Amoy Identity Anchor
+                    City General Triage Desk • MST Testnet Identity Anchor
                   </p>
                 </div>
               </div>
@@ -1058,7 +1058,7 @@ export const HospitalPortalPage: React.FC<HospitalPortalPageProps> = ({ onShowTo
               <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 flex items-start gap-3">
                 <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-indigo-900 dark:text-indigo-200 leading-relaxed">
-                  Generates a 14-digit Luhn-verified MediID and isolated Vault ID. Baseline emergency demographics are stored off-chain with AES-256-GCM encryption and anchored to Polygon blockchain.
+                  Generates a 14-digit Luhn-verified MediID and isolated Vault ID. Baseline emergency demographics are stored off-chain with AES-256-GCM encryption and anchored to MST Testnet.
                 </p>
               </div>
 

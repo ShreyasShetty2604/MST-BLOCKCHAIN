@@ -55,7 +55,7 @@ export const AdminLandingPage: React.FC<AdminLandingPageProps> = ({
     },
     multisig: {
       officerName: 'Consortium Key Signer #3',
-      department: 'Polygon Amoy Health Consortium DAO',
+      department: 'MST Testnet Health Consortium DAO',
       designation: 'Smart Contract Multi-Sig Validator',
       badgeNumber: 'DAO-VAL-8821',
       clearanceLevel: 'Protocol Multi-Sig Admin',

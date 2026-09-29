@@ -75,7 +75,7 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
     facilityCode: 'HOSP-CGH-001',
     walletAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
     department: 'Emergency & Trauma Triage',
-    accreditation: 'NABH Level 3 • Polygon Amoy Registered'
+    accreditation: 'NABH Level 3 • MST Testnet Registered'
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -160,7 +160,7 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
             </h1>
 
             <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-              Equip your hospital, clinic, or emergency trauma center with real-time optical MediID camera scanning, hardware biometric patient onboarding, and Polygon smart contract authenticated medical record issuance.
+              Equip your hospital, clinic, or emergency trauma center with real-time optical MediID camera scanning, hardware biometric patient onboarding, and MST smart contract authenticated medical record issuance.
             </p>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
@@ -193,7 +193,7 @@ export const HospitalLandingPage: React.FC<HospitalLandingPageProps> = ({
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Polygon Amoy Synced
+                MST Testnet Synced
               </span>
             </div>
 

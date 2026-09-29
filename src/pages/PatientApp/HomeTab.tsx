@@ -71,7 +71,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-emerald-200/80">
-              Passkey WebAuthn enclave, encrypted DNA reference, and Polygon Amoy proof verification.
+              Passkey WebAuthn enclave, encrypted DNA reference, and MST Testnet proof verification.
             </p>
           </div>
         </div>

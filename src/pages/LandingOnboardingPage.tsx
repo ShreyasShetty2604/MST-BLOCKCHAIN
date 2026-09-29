@@ -267,7 +267,7 @@ export const LandingOnboardingPage: React.FC<LandingOnboardingPageProps> = ({
             </h1>
 
             <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
-              MediVault combines biometric passkey encryption with a Polygon blockchain audit trail. Keep complete sovereignty over your medical history without sacrificing emergency care speed.
+              MediVault combines biometric passkey encryption with an MST Testnet blockchain audit trail. Keep complete sovereignty over your medical history without sacrificing emergency care speed.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">

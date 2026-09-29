@@ -304,7 +304,7 @@ export const HealthIdCard: React.FC<HealthIdCardProps> = ({ persona, onOpenEmerg
                 </button>
 
                 <span className="inline-block px-2 py-0.5 rounded-md text-[10px] bg-slate-900 text-slate-300 font-mono border border-slate-800">
-                  Polygon Amoy
+                  MST Testnet (91562037)
                 </span>
               </div>
 

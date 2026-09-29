@@ -548,7 +548,7 @@ export const CameraQrScannerModal: React.FC<CameraQrScannerModalProps> = ({
                       <FileText className="w-4 h-4 text-teal-600" />
                       <span>Decrypted Medical Records ({loadedRecords.length})</span>
                     </span>
-                    <span className="text-[10px] text-slate-500">Polygon Blockchain Anchored</span>
+                    <span className="text-[10px] text-slate-500">MST Testnet Anchored</span>
                   </div>
 
                   <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">

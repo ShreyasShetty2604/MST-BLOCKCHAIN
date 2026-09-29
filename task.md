@@ -52,7 +52,7 @@ If solo: follow the phase order below and use the cut list in section 6.
 ## 3. Before the Hackathon (prep, do NOT skip)
 
 - [ ] Create MetaMask wallets: admin, 2 hospital wallets, 1 relayer
-- [ ] Pre-fund all wallets with testnet tokens (Sepolia or Polygon Amoy). Faucets fail on event day.
+- [ ] Pre-fund all wallets with testnet tokens (MST Testnet - Chain ID: 91562037). Faucets fail on event day.
 - [ ] Set up Remix or Hardhat, confirm a "hello world" contract deploys
 - [ ] Set up a local Hardhat chain as a fallback if the testnet is down
 - [ ] Get an LLM API key and test one call

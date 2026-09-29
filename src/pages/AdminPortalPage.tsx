@@ -113,7 +113,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast, s
         <div className="flex items-center gap-3">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-xs shadow-sm">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Polygon Amoy (80002)</span>
+            <span>MST Testnet (91562037)</span>
           </div>
 
           {onLogout && (
@@ -257,7 +257,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onShowToast, s
                   Pending Healthcare Facility Accreditation Applications ({hospitals.filter((h) => h.status === 'Pending').length})
                 </h3>
                 <p className="text-xs text-amber-700/80 dark:text-amber-400">
-                  New institutions requesting medical record issuance authority on Polygon Amoy. Review and Approve or Decline.
+                  New institutions requesting medical record issuance authority on MST Testnet. Review and Approve or Decline.
                 </p>
               </div>
             </div>

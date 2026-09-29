@@ -25,11 +25,6 @@ export default {
       url: process.env.MST_MAINNET_RPC || "https://rpc.mstchain.io",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 4646
-    },
-    polygonAmoy: {
-      url: process.env.POLYGON_AMOY_RPC || "https://rpc-amoy.polygon.technology",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 80002
     }
   }
 };

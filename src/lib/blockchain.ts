@@ -40,7 +40,7 @@ const onChainLedger: Map<string, OnChainRecord> = new Map([
       dnaHash: '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8fa1b2c3d4e5f6a7b8c9d0e1f2',
       blockNumber: 4820120,
       txHash: '0x7f9a12b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5',
-      network: 'Polygon Amoy Testnet (Chain ID: 80002)',
+      network: 'MST Testnet (Chain ID: 91562037)',
       updatedAt: '2026-09-28T16:00:00Z'
     }
   ]
@@ -68,7 +68,7 @@ export const blockchainService = {
       dnaHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
       blockNumber: 4820000 + Math.floor(Math.random() * 500),
       txHash,
-      network: 'Polygon Amoy Testnet (Chain ID: 80002)',
+      network: 'MST Testnet (Chain ID: 91562037)',
       updatedAt: new Date().toISOString()
     };
     onChainLedger.set(vaultId, record);
