@@ -64,7 +64,7 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
         {/* DUAL-COLUMN NAVIGATION PANEL (ICON RAIL + LABEL PANEL) */}
         <div className="flex gap-2.5 w-full">
           {/* LEFT COLUMN: ICON RAIL */}
-          <div className="w-14 border border-slate-300 dark:border-slate-800 rounded-xl p-1.5 bg-white dark:bg-slate-900 shadow-xs flex flex-col gap-2 shrink-0 items-center justify-start">
+          <div className="w-14 border border-emerald-500/25 rounded-2xl p-1.5 bg-emerald-950/40 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(6,78,59,0.3)] flex flex-col gap-2 shrink-0 items-center justify-start">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -74,8 +74,8 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
                   title={tab.label}
                   className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-teal-800 dark:bg-teal-700 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-emerald-800/80 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/50'
+                      : 'text-emerald-300/80 hover:bg-emerald-900/40 hover:text-emerald-100'
                   }`}
                 >
                   {tab.icon}
@@ -85,7 +85,7 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
           </div>
 
           {/* RIGHT COLUMN: TEXT MENU PANEL */}
-          <div className="flex-1 border border-slate-300 dark:border-slate-800 rounded-xl p-1.5 bg-white dark:bg-slate-900 shadow-xs flex flex-col gap-2">
+          <div className="flex-1 border border-emerald-500/25 rounded-2xl p-1.5 bg-emerald-950/40 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(6,78,59,0.3)] flex flex-col gap-2">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -94,8 +94,8 @@ export const PatientLayout: React.FC<PatientLayoutProps> = ({
                   onClick={() => onTabChange(tab.id)}
                   className={`w-full h-11 px-3 rounded-xl text-xs flex items-center transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-teal-800 dark:bg-teal-700 text-white font-bold shadow-sm'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'
+                      ? 'bg-emerald-800/80 text-white font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/50'
+                      : 'text-emerald-300/80 hover:bg-emerald-900/40 hover:text-emerald-100 font-medium'
                   }`}
                 >
                   {tab.label}

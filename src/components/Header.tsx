@@ -38,12 +38,12 @@ export const Header: React.FC<HeaderProps> = ({
   onLogoutAdmin
 }) => {
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <header className="sticky top-0 z-40 w-full bg-emerald-950/80 backdrop-blur-xl border-b border-emerald-500/20 shadow-[0_4px_20px_rgba(6,78,59,0.25)] transition-colors">
       <div className="w-full pl-2 sm:pl-3 lg:pl-4 pr-4 sm:pr-6 lg:pr-8 h-16 flex items-center justify-between gap-4">
         {/* Logo & ID Brand */}
         <div className="flex items-center gap-3">
           {/* Official Emblem Icon */}
-          <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-1 shadow-sm shrink-0 overflow-hidden">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-900/40 border border-emerald-500/30 flex items-center justify-center p-1 shadow-sm shrink-0 overflow-hidden backdrop-blur-md">
             <img src="/logo.png" alt="MediVault Emblem" className="w-full h-full object-contain" />
           </div>
 
@@ -53,26 +53,26 @@ export const Header: React.FC<HeaderProps> = ({
               <img
                 src="/logo-brand.png"
                 alt="MEDiVault Brand"
-                className="h-7 sm:h-8 object-contain dark:brightness-125 dark:bg-white/95 dark:px-2 dark:py-0.5 dark:rounded-lg transition-all shadow-xs"
+                className="h-7 sm:h-8 object-contain brightness-125 bg-emerald-900/40 px-2 py-0.5 rounded-lg border border-emerald-500/30 transition-all shadow-xs"
               />
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 shrink-0">
                 MediID
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block mt-0.5">
+            <p className="text-[10px] text-emerald-400/80 font-medium hidden sm:block mt-0.5">
               Patient-Controlled Records • Blockchain Audit Trail
             </p>
           </div>
         </div>
 
         {/* Center: Role Switcher (Discreet Dev/Demo Control) */}
-        <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1 shadow-inner">
+        <div className="p-1 rounded-2xl bg-emerald-950/60 border border-emerald-500/30 flex items-center gap-1 shadow-inner backdrop-blur-md">
           <button
             onClick={() => onRoleChange('patient')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
               currentRole === 'patient'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-emerald-800/90 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/50'
+                : 'text-emerald-300/80 hover:text-emerald-100 hover:bg-emerald-900/40'
             }`}
           >
             <User className="w-3.5 h-3.5" />
@@ -81,10 +81,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => onRoleChange('hospital')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
               currentRole === 'hospital'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-emerald-800/90 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/50'
+                : 'text-emerald-300/80 hover:text-emerald-100 hover:bg-emerald-900/40'
             }`}
           >
             <Building2 className="w-3.5 h-3.5" />
@@ -93,10 +93,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => onRoleChange('admin')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
               currentRole === 'admin'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-emerald-800/90 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/50'
+                : 'text-emerald-300/80 hover:text-emerald-100 hover:bg-emerald-900/40'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />

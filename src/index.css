@@ -4,12 +4,17 @@
 
 @layer base {
   :root {
-    --primary-teal: #0F766E;
-    --accent-indigo: #4F46E5;
+    --primary-teal: #10B981;
+    --accent-emerald: #059669;
   }
   
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-teal-500 selection:text-white;
+    @apply bg-emerald-950/95 text-emerald-100 antialiased selection:bg-emerald-500 selection:text-white;
+    background-image: 
+      radial-gradient(ellipse at 10% 20%, rgba(16, 185, 129, 0.15), transparent 40%),
+      radial-gradient(ellipse at 90% 80%, rgba(5, 150, 105, 0.12), transparent 45%),
+      linear-gradient(135deg, #022c22 0%, #064e3b 50%, #022c22 100%);
+    background-attachment: fixed;
   }
 
   /* Accessibility Focus Rings */
@@ -18,7 +23,7 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    @apply outline-none ring-2 ring-teal-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 transition-shadow;
+    @apply outline-none ring-2 ring-emerald-400 ring-offset-2 ring-offset-emerald-950 transition-shadow;
   }
 }
 
@@ -26,10 +31,10 @@
 .bg-hologram {
   background: linear-gradient(
     135deg,
-    rgba(15, 118, 110, 0.98) 0%,
-    rgba(30, 58, 138, 0.92) 35%,
-    rgba(79, 70, 229, 0.92) 70%,
-    rgba(13, 148, 136, 0.98) 100%
+    rgba(16, 185, 129, 0.95) 0%,
+    rgba(6, 95, 70, 0.95) 35%,
+    rgba(4, 120, 87, 0.95) 70%,
+    rgba(16, 185, 129, 0.95) 100%
   );
   background-size: 200% 200%;
 }
@@ -37,10 +42,10 @@
 .dark .bg-hologram {
   background: linear-gradient(
     135deg,
-    rgba(13, 110, 102, 0.98) 0%,
-    rgba(15, 23, 42, 0.98) 40%,
-    rgba(67, 56, 202, 0.92) 75%,
-    rgba(15, 118, 110, 0.98) 100%
+    rgba(6, 95, 70, 0.95) 0%,
+    rgba(2, 44, 34, 0.98) 40%,
+    rgba(4, 120, 87, 0.95) 75%,
+    rgba(16, 185, 129, 0.95) 100%
   );
   background-size: 200% 200%;
 }
@@ -53,9 +58,9 @@
   );
 }
 
-/* Glassmorphic Panel Utility */
+/* Glassmorphic Panel Utility (Green Glass) */
 .glass-panel {
-  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80;
+  @apply bg-emerald-950/40 backdrop-blur-xl border border-emerald-500/25 shadow-[0_8px_32px_0_rgba(6,78,59,0.3)] text-emerald-100;
 }
 
 /* Custom scrollbars */
