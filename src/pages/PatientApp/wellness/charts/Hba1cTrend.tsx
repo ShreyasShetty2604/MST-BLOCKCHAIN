@@ -6,7 +6,7 @@ import { useChartTokens } from './theme';
 const fmtMonth = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
 
 // One series (HbA1c %), so no legend box; the marker key below explains filled vs hollow points.
-export const Hba1cTrend: React.FC<{ points: Hba1cPoint[] }> = ({ points }) => {
+export const Hba1cTrend: React.FC<{ points: Hba1cPoint[]; compact?: boolean }> = ({ points, compact = false }) => {
   const t = useChartTokens();
   const data = points.map((p) => ({ ...p, label: fmtMonth(p.date) }));
   const values = points.map((p) => p.value);
@@ -47,12 +47,12 @@ export const Hba1cTrend: React.FC<{ points: Hba1cPoint[] }> = ({ points }) => {
 
   return (
     <div className="space-y-3">
-      <div className="h-56 -ml-2">
+      <div className={compact ? 'h-40 -ml-2' : 'h-56 -ml-2'}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 16, right: 40, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke={t.grid} strokeWidth={1} />
             <ReferenceArea y1={yMin} y2={7} fill={t.status.goodWash} stroke="none" ifOverflow="extendDomain" label={{ value: 'Target < 7%', position: 'insideBottomLeft', fill: t.muted, fontSize: 11 }} />
-            <XAxis dataKey="label" tick={{ fill: t.muted, fontSize: 11 }} axisLine={{ stroke: t.grid }} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fill: t.muted, fontSize: 11 }} axisLine={{ stroke: t.grid }} tickLine={false} interval={compact ? 'preserveStartEnd' : undefined} minTickGap={compact ? 24 : 5} />
             <YAxis domain={[yMin, yMax]} tick={{ fill: t.muted, fontSize: 11 }} axisLine={false} tickLine={false} width={36} tickFormatter={(v) => `${v}%`} />
             <Tooltip content={tip as never} cursor={{ stroke: t.axis, strokeWidth: 1 }} />
             <Line
@@ -76,7 +76,7 @@ export const Hba1cTrend: React.FC<{ points: Hba1cPoint[] }> = ({ points }) => {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <div className={`flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 ${compact ? 'gap-3 text-[11px]' : ''}`}>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-teal-700 dark:bg-teal-400" /> ✓ Verified (hospital record)
         </span>

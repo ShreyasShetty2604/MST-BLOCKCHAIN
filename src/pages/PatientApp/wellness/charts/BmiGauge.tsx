@@ -14,7 +14,7 @@ const ZONES = [
 
 const angleOf = (bmi: number) => 180 - ((Math.min(Math.max(bmi, MIN), MAX) - MIN) / (MAX - MIN)) * 180;
 
-export const BmiGauge: React.FC<{ bmi: number }> = ({ bmi }) => {
+export const BmiGauge: React.FC<{ bmi: number; compact?: boolean }> = ({ bmi, compact = false }) => {
   const t = useChartTokens();
   const [shown, setShown] = useState(MIN); // needle eases in on mount
   useEffect(() => {
@@ -28,7 +28,7 @@ export const BmiGauge: React.FC<{ bmi: number }> = ({ bmi }) => {
   const r = 86;
 
   return (
-    <figure className="space-y-4">
+    <figure className={compact ? 'space-y-2' : 'space-y-4'}>
       <svg viewBox="0 0 220 128" className="w-full max-w-xs mx-auto block" role="img" aria-label={`BMI ${bmi.toFixed(1)}, ${active.label} by Asian cut-offs`}>
         {ZONES.map((z) => {
           const gap = 0.12; // BMI units of surface gap between zones
@@ -80,6 +80,7 @@ export const BmiGauge: React.FC<{ bmi: number }> = ({ bmi }) => {
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{active.label} · Asian cut-offs</span>
       </figcaption>
 
+      {!compact && (
       <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
         {ZONES.map((z) => (
           <li key={z.label} className="flex items-center gap-1.5">
@@ -90,6 +91,7 @@ export const BmiGauge: React.FC<{ bmi: number }> = ({ bmi }) => {
           </li>
         ))}
       </ul>
+      )}
     </figure>
   );
 };

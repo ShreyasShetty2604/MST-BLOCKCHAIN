@@ -92,35 +92,3 @@ export const DemoLabel: React.FC<{ className?: string }> = ({ className = '' }) 
 export const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800 ${className}`} />
 );
-
-export interface TabDef<T extends string> {
-  id: T;
-  label: string;
-  icon: LucideIcon;
-}
-
-// Segmented tab bar; scrolls horizontally on small screens.
-export function TabBar<T extends string>({ tabs, active, onChange }: { tabs: TabDef<T>[]; active: T; onChange: (id: T) => void }) {
-  return (
-    <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div role="tablist" className="inline-flex gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-slate-900">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={active === id}
-            onClick={() => onChange(id)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-              active === id
-                ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

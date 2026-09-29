@@ -20,7 +20,7 @@ import { NutritionBars, DailyReference } from './NutritionBars';
 
 interface MealScanCardProps {
   persona: PatientPersona;
-  onScanComplete?: (verdict: Verdict) => void; // e.g. to count today's scans
+  onScanComplete?: (verdict: Verdict, analysis: MealAnalysis) => void; // e.g. to count today's scans and their calories
   dailyReference?: DailyReference; // enables the nutrition-estimate chart
 }
 
@@ -115,7 +115,7 @@ export const MealScanCard: React.FC<MealScanCardProps> = ({ persona, onScanCompl
       if (id !== requestId.current) return;
       setAnalysis(analysis);
       setStatus('done');
-      onScanComplete?.(evaluateMeal(analysis, profile).overall);
+      onScanComplete?.(evaluateMeal(analysis, profile).overall, analysis);
     } catch (err) {
       if (id !== requestId.current) return;
       console.error('Meal scan failed', err);
@@ -135,7 +135,7 @@ export const MealScanCard: React.FC<MealScanCardProps> = ({ persona, onScanCompl
     setDemo(meal);
     setAnalysis(meal.analysis);
     setStatus('done');
-    onScanComplete?.(evaluateMeal(meal.analysis, mergeProfiles(profile, meal.demoProfile)).overall);
+    onScanComplete?.(evaluateMeal(meal.analysis, mergeProfiles(profile, meal.demoProfile)).overall, meal.analysis);
   }
 
   const demoAssumptions = demo ? demoOnlyItems(profile, demo.demoProfile) : [];

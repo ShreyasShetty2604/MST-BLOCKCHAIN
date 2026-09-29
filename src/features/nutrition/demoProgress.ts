@@ -6,7 +6,7 @@ import { MedicalRecord } from '../../mock/types';
 import { PlannedMeal } from './dietPlan';
 import { hba1cReadings } from './recordInsights';
 
-function seededRandom(seed: string) {
+export function seededRandom(seed: string) {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
   return () => {
@@ -18,7 +18,7 @@ function seededRandom(seed: string) {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-function minutesOf(time: string): number {
+export function minutesOf(time: string): number {
   const m = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!m) return 0;
   let h = Number(m[1]) % 12;
@@ -149,4 +149,26 @@ export function todayMacroIntake(eatenCalories: number, split: { Carbs: number; 
     grams: Math.round((eatenCalories * shares[name]) / kcalPerGram[name]),
     percent: Math.round(shares[name] * 100)
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Steps by hour today (demo): a typical day with a morning walk and an evening stroll,
+// filled up to the current hour (the current hour is pro-rated).
+// ---------------------------------------------------------------------------
+
+const STEP_PATTERN = [0, 0, 0, 0, 0, 0, 250, 1400, 500, 700, 300, 350, 450, 800, 300, 350, 400, 1100, 900, 600, 400, 250, 100, 0];
+
+export function demoHourlySteps(personaId: string, now = new Date()): number[] {
+  const rand = seededRandom(`${personaId}:steps:${now.toISOString().slice(0, 10)}`);
+  const hour = now.getHours();
+  return STEP_PATTERN.map((base, h) => {
+    const r = 0.7 + rand() * 0.6; // always draw, so earlier hours don't change as the day goes on
+    if (h > hour) return 0;
+    return Math.round(base * r * (h === hour ? now.getMinutes() / 60 : 1));
+  });
+}
+
+// Days in a row with no high-sugar items logged (demo), between 3 and 7.
+export function lowSugarStreak(personaId: string): number {
+  return 3 + Math.floor(seededRandom(`${personaId}:low-sugar`)() * 5);
 }
