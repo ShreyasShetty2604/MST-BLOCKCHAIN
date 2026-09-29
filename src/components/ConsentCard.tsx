@@ -49,17 +49,17 @@ export const ConsentCard: React.FC<ConsentCardProps> = ({ consent, onRevoke }) =
   const isTier2 = consent.tier === 'Tier 2';
 
   return (
-    <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card hover:shadow-card-hover transition-all space-y-4">
+    <div className="p-5 rounded-2xl glass-panel space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-teal-700 dark:text-teal-300 border border-teal-100 dark:border-teal-900">
+          <div className="p-3 bg-emerald-900/50 rounded-xl text-emerald-400 border border-emerald-500/30">
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+            <h3 className="font-semibold text-white text-base">
               {consent.hospitalName}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-emerald-200/70 mt-0.5">
               Reason: {consent.reason}
             </p>
           </div>

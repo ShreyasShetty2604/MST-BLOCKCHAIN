@@ -68,10 +68,10 @@ export const TimelineItem: React.FC<TimelineItemProps> = ({ record, onRefresh })
       </div>
 
       {/* Card Content */}
-      <div className={`rounded-2xl border bg-white dark:bg-slate-900 shadow-card hover:shadow-card-hover transition-all overflow-hidden ${
+      <div className={`rounded-2xl border transition-all overflow-hidden ${
         isTampered
-          ? 'border-rose-300 dark:border-rose-900 bg-rose-50/20 dark:bg-rose-950/20'
-          : 'border-slate-200 dark:border-slate-800'
+          ? 'border-rose-500/50 bg-rose-950/40'
+          : 'glass-panel hover:border-emerald-400/50'
       }`}>
         <div
           className="p-5 cursor-pointer select-none space-y-3"

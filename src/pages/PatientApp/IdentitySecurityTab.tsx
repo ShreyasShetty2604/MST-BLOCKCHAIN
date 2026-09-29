@@ -220,7 +220,7 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
       )}
 
       {/* SECTION 1: IDENTITY & MEDIID */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl glass-panel space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block font-mono">
             IDENTITY & SECURITY
@@ -282,24 +282,24 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
       </div>
 
       {/* SECTION 2: FINGERPRINT (BIOMETRIC) */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl glass-panel space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+            <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-400 border border-emerald-500/30">
               <Fingerprint className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-white">
                 FINGERPRINT
               </h2>
-              <span className="text-[11px] text-slate-500">Biometric template storage & authentication</span>
+              <span className="text-[11px] text-emerald-200/70">Biometric template storage & authentication</span>
             </div>
           </div>
 
           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
             integrityReport?.components.fingerprint.status === 'TAMPERED'
-              ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800'
-              : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+              ? 'bg-rose-950 text-rose-300 border-rose-800'
+              : 'bg-emerald-950 text-emerald-300 border-emerald-800'
           }`}>
             {integrityReport?.components.fingerprint.status === 'TAMPERED' ? (
               <>
@@ -315,37 +315,37 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
           </span>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+        <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/20 text-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">Authentication Protocol:</span>
-            <strong className="font-mono text-slate-900 dark:text-white">WebAuthn / FIDO2 Enclave Challenge</strong>
+            <span className="text-emerald-200/70">Authentication Protocol:</span>
+            <strong className="font-mono text-white">WebAuthn / FIDO2 Enclave Challenge</strong>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">Storage Encryption:</span>
-            <span className="font-mono font-semibold text-teal-700 dark:text-teal-400">AES-256-GCM (Off-Chain)</span>
+            <span className="text-emerald-200/70">Storage Encryption:</span>
+            <span className="font-mono font-semibold text-emerald-400">AES-256-GCM (Off-Chain)</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">On-Chain Proof:</span>
-            <span className="font-mono text-[10px] text-slate-500 truncate max-w-xs">
+            <span className="text-emerald-200/70">On-Chain Proof:</span>
+            <span className="font-mono text-[10px] text-emerald-300/80 truncate max-w-xs">
               {integrityReport?.components.fingerprint.anchoredHash || '0x9924e930f3...'}
             </span>
           </div>
         </div>
 
         {/* Prototype Architecture Note */}
-        <p className="text-[11px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-emerald-200/60 leading-relaxed">
           <strong>Security Architecture:</strong> Raw fingerprint images are never captured or sent to the server. The client platform enclave performs biometric verification and sends cryptographic authentication assertions. Prototype biometric feature templates are encrypted with AES-256-GCM before off-chain storage.
         </p>
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-emerald-300/60 font-mono">
             {bioVerifiedAt ? `Last verified at ${bioVerifiedAt}` : 'Ready for challenge'}
           </span>
 
           <button
             onClick={handleVerifyBiometrics}
             disabled={isVerifyingBio}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <Fingerprint className="w-3.5 h-3.5" />
             <span>{isVerifyingBio ? 'Verifying Enclave...' : 'Verify Identity'}</span>
@@ -354,55 +354,55 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
       </div>
 
       {/* SECTION 3: DNA PROFILE */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl glass-panel space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
+            <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-400 border border-emerald-500/30">
               <Dna className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-white">
                 DNA PROFILE
               </h2>
-              <span className="text-[11px] text-slate-500">Laboratory-issued genomic reference</span>
+              <span className="text-[11px] text-emerald-200/70">Laboratory-issued genomic reference</span>
             </div>
           </div>
 
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Protected</span>
           </span>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+        <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/20 text-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">Laboratory Reference ID:</span>
-            <strong className="font-mono text-slate-900 dark:text-white">DNA-LAB-829173</strong>
+            <span className="text-emerald-200/70">Laboratory Reference ID:</span>
+            <strong className="font-mono text-white">DNA-LAB-829173</strong>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">Accredited Laboratory:</span>
-            <span className="font-medium text-slate-800 dark:text-slate-200">National Genomics Diagnostic Center (NABL)</span>
+            <span className="text-emerald-200/70">Accredited Laboratory:</span>
+            <span className="font-medium text-emerald-200">National Genomics Diagnostic Center (NABL)</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 dark:text-slate-400">Access Control:</span>
-            <span className="font-semibold text-amber-700 dark:text-amber-400">Restricted (Patient & Authorized ER Only)</span>
+            <span className="text-emerald-200/70">Access Control:</span>
+            <span className="font-semibold text-amber-300">Restricted (Patient & Authorized ER Only)</span>
           </div>
         </div>
 
         {/* Prototype DNA Note */}
-        <p className="text-[11px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-emerald-200/60 leading-relaxed">
           <strong>Laboratory Notice:</strong> DNA sequencing is performed by certified diagnostics laboratories. Raw genome sequences are never placed on-chain. MediVault encrypts the laboratory reference profile with AES-256-GCM and anchors only the 32-byte cryptographic SHA-256 hash.
         </p>
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-emerald-300/60 font-mono">
             {dnaVerifiedAt ? `Last verified at ${dnaVerifiedAt}` : 'Access restricted'}
           </span>
 
           <button
             onClick={handleVerifyDna}
             disabled={isVerifyingDna}
-            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <Dna className="w-3.5 h-3.5" />
             <span>{isVerifyingDna ? 'Verifying Reference...' : 'Verify DNA'}</span>
@@ -411,7 +411,7 @@ export const IdentitySecurityTab: React.FC<IdentitySecurityTabProps> = ({
       </div>
 
       {/* SECTION 4: SECURITY & BLOCKCHAIN INTEGRITY */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="p-6 rounded-2xl glass-panel space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block font-mono">
             SECURITY & BLOCKCHAIN INTEGRITY

@@ -124,15 +124,15 @@ export const RecordsTab: React.FC = () => {
 
       {/* Full Scan Progress / Results Banner */}
       {scanResults && (
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-              <ShieldCheck className="w-5 h-5 text-teal-600" />
+        <div className="p-5 rounded-2xl glass-panel space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
+            <div className="flex items-center gap-2 font-bold text-sm text-white">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <span>Full Vault Cryptographic Audit Report</span>
             </div>
             <button
               onClick={() => setScanResults(null)}
-              className="text-xs text-slate-400 hover:text-slate-600"
+              className="text-xs text-emerald-300 hover:text-white"
             >
               Close Report
             </button>
@@ -144,15 +144,15 @@ export const RecordsTab: React.FC = () => {
                 key={res.recordId}
                 className={`p-2.5 rounded-xl border flex items-center justify-between ${
                   res.status === 'verified'
-                    ? 'bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-200 text-emerald-900 dark:text-emerald-200'
-                    : 'bg-rose-50 dark:bg-rose-950/80 border-rose-300 text-rose-900 dark:text-rose-200 font-bold animate-pulse'
+                    ? 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200'
+                    : 'bg-rose-950/80 border-rose-500/40 text-rose-200 font-bold animate-pulse'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {res.status === 'verified' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
                   )}
                   <span>{res.title}</span>
                 </div>
@@ -167,15 +167,15 @@ export const RecordsTab: React.FC = () => {
 
       {/* Filter Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+        <Filter className="w-4 h-4 text-emerald-400 shrink-0" />
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
               selectedCategory === cat
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-teal-500'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'glass-panel text-emerald-200 hover:border-emerald-400'
             }`}
           >
             {cat}
@@ -185,15 +185,15 @@ export const RecordsTab: React.FC = () => {
 
       {/* Records Timeline */}
       {loading ? (
-        <div className="p-12 text-center text-slate-400 space-y-2">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-teal-600" />
+        <div className="p-12 text-center text-emerald-300 space-y-2">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-400" />
           <p className="text-xs">Decrypting timeline records from local vault...</p>
         </div>
       ) : records.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-          <FileText className="w-10 h-10 text-slate-400 mx-auto" />
-          <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">No records found</p>
-          <p className="text-xs text-slate-500">Add a self-declared record or request your hospital to anchor a report.</p>
+        <div className="p-12 text-center glass-panel space-y-2">
+          <FileText className="w-10 h-10 text-emerald-400 mx-auto" />
+          <p className="font-bold text-white text-sm">No records found</p>
+          <p className="text-xs text-emerald-200/70">Add a self-declared record or request your hospital to anchor a report.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -205,8 +205,8 @@ export const RecordsTab: React.FC = () => {
 
       {/* Add Self-Declared Record Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg glass-panel p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="font-bold text-slate-900 dark:text-white text-base">
                 Add Self-Declared Record

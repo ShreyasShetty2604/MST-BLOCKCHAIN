@@ -51,8 +51,8 @@ export const AuditLogRow: React.FC<AuditLogRowProps> = ({ log, onFlag }) => {
     <div
       className={`p-4 rounded-xl border transition-all space-y-3 ${
         log.isEmergency
-          ? 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 shadow-sm'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+          ? 'bg-rose-950/40 border-rose-500/40 shadow-sm'
+          : 'glass-panel hover:border-emerald-400/50'
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">

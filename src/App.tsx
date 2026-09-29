@@ -32,7 +32,7 @@ export function App() {
   const [hospitalSession, setHospitalSession] = useState<HospitalStaffSession | null>(null);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
   const [adminSession, setAdminSession] = useState<AdminOfficerSession | null>(null);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(true);
   const [activePersona, setActivePersona] = useState<PatientPersona | null>(null);
   const [reminders, setReminders] = useState<CheckupReminder[]>([]);
   const [emergencyOpen, setEmergencyOpen] = useState<boolean>(false);
@@ -89,7 +89,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-emerald-950/95 text-emerald-100 font-sans transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
       {/* Global Navigation Header */}
       <Header
         currentRole={role === 'landing' ? 'patient' : role}

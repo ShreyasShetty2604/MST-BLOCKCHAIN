@@ -145,7 +145,7 @@ export const AccessTab: React.FC = () => {
         </div>
 
         {consents.length === 0 ? (
-          <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 text-xs">
+          <div className="p-8 text-center glass-panel text-emerald-200/70 text-xs">
             No active consents granted.
           </div>
         ) : (
@@ -158,28 +158,28 @@ export const AccessTab: React.FC = () => {
       </div>
 
       {/* FULL AUDIT LOG TABLE / TIMELINE */}
-      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <div className="space-y-4 pt-4 border-t border-emerald-500/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <span>Immutable On-Chain Audit Ledger</span>
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-emerald-200/70">
               Every access event, AI read, consent grant, or emergency break-glass log is anchored on-chain.
             </p>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs">
-            <Filter className="w-3.5 h-3.5 text-slate-400 ml-2" />
+          <div className="flex items-center gap-1 glass-panel p-1 rounded-xl text-xs">
+            <Filter className="w-3.5 h-3.5 text-emerald-400 ml-2" />
             {['All', 'Emergency', 'Consents', 'AI Read'].map((f) => (
               <button
                 key={f}
                 onClick={() => setSelectedAuditFilter(f)}
-                className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                   selectedAuditFilter === f
-                    ? 'bg-teal-700 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-300 hover:text-white'
                 }`}
               >
                 {f}
@@ -197,8 +197,8 @@ export const AccessTab: React.FC = () => {
 
       {/* CONSENT APPROVAL SHEET MODAL */}
       {selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg glass-panel p-6 shadow-2xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-mono font-bold text-teal-600 uppercase">
