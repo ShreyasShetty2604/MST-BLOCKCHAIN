@@ -1,0 +1,8 @@
+{
+  "payloadHash": "0xd35c29714c6b79e6f82e5b4362c458fe49d9e486e1ae22140e2cd45c10ac3966",
+  "vaultId": "VLT-2B35D99BFCE1",
+  "iv": "91e0ebe2ae02677e4860be1a",
+  "authTag": "8aa6c0fd5cd6dbd0f4f7c43bfa77734a",
+  "ciphertext": "034f13312c0703ebe0a34e9313787f3b6f53cc7794041ad99237da8bca6a6cf82ddfd13a4a39de82192b045ee15b6bb968261839e3915b6a9bb6e237d19c29be5c2c26f8617568b0f164c0dd9e567aee19c148f6c96dde5c",
+  "createdAt": "2026-09-29T07:54:25.843Z"
+}

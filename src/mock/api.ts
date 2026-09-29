@@ -10,6 +10,7 @@ import {
 } from './seedData';
 import { generateMediID, hashMediID } from '../lib/mediId';
 import { generateVaultId } from '../lib/crypto';
+import { packetLogger } from '../lib/packetLogger';
 
 // Storage keys. Nothing is seeded automatically: the Login page's "Load test data" button
 // calls loadTestData(). Consents, audit logs, reminders and requests are stored per patient
@@ -714,7 +715,7 @@ export const mockApi = {
         const data = await res.json();
         if (data.record) {
           txHash = data.record.txHash || txHash;
-          recordHash = data.record.recordHash || recordHash;
+          recordHash = data.record.hash || data.record.recordHash || recordHash;
           blockNumber = data.record.blockNumber || blockNumber;
         }
       }
@@ -746,6 +747,9 @@ export const mockApi = {
     if (!recordsMap[activeId]) recordsMap[activeId] = [];
     recordsMap[activeId].unshift(newRec);
     write(KEYS.RECORDS, recordsMap);
+
+    // Always log transaction packet to packetLogger live stream and console
+    packetLogger.logRecordAdded(input.title, recordHash);
 
     // Audit log
     const auditLogs: AuditLog[] = readScoped<AuditLog>(KEYS.AUDIT_LOGS, activeId);
