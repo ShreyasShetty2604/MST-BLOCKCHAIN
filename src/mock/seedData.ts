@@ -455,7 +455,7 @@ export const INITIAL_STATS: SystemStats = {
   recordsAnchored: 184920,
   consentsGranted: 49210,
   emergenciesUsed: 142,
-  networkStatus: 'Polygon Amoy Testnet (Chain ID: 80002)',
+  networkStatus: 'MST Testnet (Chain ID: 91562037, Token: tMSTC)',
   dailyAuditsTrend: [
     { day: 'Mon', accesses: 1240, emergencies: 4 },
     { day: 'Tue', accesses: 1450, emergencies: 2 },

@@ -16,6 +16,16 @@ export default {
     hardhat: {
       chainId: 31337
     },
+    mstTestnet: {
+      url: process.env.MST_TESTNET_RPC || "https://rpc-testnet.mstchain.io",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 91562037
+    },
+    mstMainnet: {
+      url: process.env.MST_MAINNET_RPC || "https://rpc.mstchain.io",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 4646
+    },
     polygonAmoy: {
       url: process.env.POLYGON_AMOY_RPC || "https://rpc-amoy.polygon.technology",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],

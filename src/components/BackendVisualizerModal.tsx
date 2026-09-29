@@ -48,7 +48,7 @@ export const BackendVisualizerModal: React.FC<BackendVisualizerModalProps> = ({ 
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono mt-0.5">
-                Node.js Express API • Hardhat RPC • Polygon Amoy Testnet (Chain ID: 80002)
+                Node.js Express API • EVM RPC • MST Testnet (Chain ID: 91562037)
               </p>
             </div>
           </div>

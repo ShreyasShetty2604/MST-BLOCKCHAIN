@@ -161,7 +161,7 @@ export const RightSystemLogsPanel: React.FC<RightSystemLogsPanelProps> = ({
           <div className="p-2 rounded-xl bg-emerald-900/20 border border-emerald-500/25 text-emerald-200 shadow-xs hover:border-emerald-400/60 backdrop-blur-md transition-all">
             <Database className="w-3 h-3 mx-auto mb-1 text-emerald-400" />
             <span className="block font-bold">EVM Log</span>
-            <span className="text-[8px] text-emerald-300/70">Polygon</span>
+            <span className="text-[8px] text-emerald-300/70">MST Chain</span>
           </div>
         </div>
       </div>
