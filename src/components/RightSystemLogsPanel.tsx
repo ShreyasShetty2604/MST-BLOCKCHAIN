@@ -1,98 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Terminal, Cpu, Lock, ShieldCheck, Zap, Server, ChevronRight, Activity, Database, RefreshCw } from 'lucide-react';
+import { packetLogger, PacketLogEntry } from '../lib/packetLogger';
 
 interface RightSystemLogsPanelProps {
   onOpenBackendVisualizer?: () => void;
 }
 
-interface PacketLogEntry {
-  id: string;
-  time: string;
-  stage: 'AES-256' | 'HMAC' | 'RELAYER' | 'EVM' | 'ACCESS';
-  summary: string;
-  hash: string;
-  block?: number;
-  status: 'VERIFIED' | 'ENCRYPTED' | 'ANCHORED' | 'FORWARDED';
-}
-
 export const RightSystemLogsPanel: React.FC<RightSystemLogsPanelProps> = ({
   onOpenBackendVisualizer
 }) => {
-  const [selectedLog, setSelectedLog] = useState<string | null>('pkt-1');
+  const [selectedLog, setSelectedLog] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
-  const [logs, setLogs] = useState<PacketLogEntry[]>([
-    {
-      id: 'pkt-1',
-      time: '10:42:01',
-      stage: 'EVM',
-      summary: 'RecordAnchored(rec-101, v2)',
-      hash: '0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2',
-      block: 4819515,
-      status: 'ANCHORED'
-    },
-    {
-      id: 'pkt-2',
-      time: '10:41:58',
-      stage: 'RELAYER',
-      summary: 'EIP-712 Gasless Relay Executed',
-      hash: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-      status: 'FORWARDED'
-    },
-    {
-      id: 'pkt-3',
-      time: '10:41:55',
-      stage: 'HMAC',
-      summary: 'HMAC-SHA256 Checksum Match',
-      hash: '0xa4e98f712b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e',
-      status: 'VERIFIED'
-    },
-    {
-      id: 'pkt-4',
-      time: '10:41:52',
-      stage: 'AES-256',
-      summary: 'AES-256-GCM Cipher Payload Built',
-      hash: '0x8f7a1e3b5c9d2f4a6e8b0c2d4f6a8e0b2c4d6e8f',
-      status: 'ENCRYPTED'
-    },
-    {
-      id: 'pkt-5',
-      time: '10:40:12',
-      stage: 'ACCESS',
-      summary: 'Tier 2 Consent Validated (City Gen)',
-      hash: '0xa1b2c3d4e5f67890123456789abcdef012345678',
-      block: 4819490,
-      status: 'VERIFIED'
-    }
-  ]);
+  const [logs, setLogs] = useState<PacketLogEntry[]>([]);
+
+  React.useEffect(() => {
+    const unsubscribe = packetLogger.subscribe((updatedLogs) => {
+      setLogs(updatedLogs);
+      if (updatedLogs.length > 0 && !selectedLog) {
+        setSelectedLog(updatedLogs[0].id);
+      }
+    });
+    return () => unsubscribe();
+  }, [selectedLog]);
 
   // Simulate pushing a new live packet log periodically or on click
   const handlePushPacket = () => {
     setIsSimulating(true);
     setTimeout(() => {
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const randomHex = Array.from({ length: 16 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-      ).join('');
-      const blockNum = 4819520 + Math.floor(Math.random() * 50);
-
-      const newPkt: PacketLogEntry = {
-        id: `pkt-${Date.now()}`,
-        time: timeStr,
-        stage: 'EVM',
-        summary: `RecordAnchored(rec-${Math.floor(Math.random() * 800 + 100)}, v1)`,
-        hash: `0x${randomHex}890123456789abcdef`,
-        block: blockNum,
-        status: 'ANCHORED'
-      };
-
-      setLogs((prev) => [newPkt, ...prev.slice(0, 7)]);
+      const newPkt = packetLogger.logRecordAdded(
+        `Diagnostic Lab Report #${Math.floor(Math.random() * 800 + 100)}`,
+        `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`
+      );
       setSelectedLog(newPkt.id);
       setIsSimulating(false);
-    }, 600);
+    }, 400);
   };
 
-  const activeEntry = logs.find((l) => l.id === selectedLog) || logs[0];
+  const activeEntry = logs.find((l) => l.id === selectedLog) || logs[0] || {
+    id: 'pkt-default',
+    time: '10:42:01',
+    stage: 'EVM',
+    summary: 'RecordAnchored(rec-101, v2)',
+    hash: '0x3f2a91b84e72c5108d9302194b1a7e4c9c1d84a2',
+    block: 4819515,
+    status: 'ANCHORED',
+    details: 'MST Testnet Block #4819515'
+  };
 
   return (
     <aside className="hidden lg:flex flex-col w-80 shrink-0 bg-gradient-to-b from-emerald-950/50 via-slate-950/60 to-emerald-950/50 backdrop-blur-2xl border border-emerald-500/35 shadow-[0_8px_32px_0_rgba(6,78,59,0.3)] text-emerald-100 rounded-3xl p-4 space-y-4 relative overflow-hidden">

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PhoneCall, HeartPulse, AlertTriangle, ShieldCheck, X, Activity, Pill } from 'lucide-react';
 import { PatientPersona } from '../mock/types';
 import { ChainBadge } from './ChainBadge';
+import { packetLogger } from '../lib/packetLogger';
 
 interface EmergencySheetProps {
   isOpen: boolean;
@@ -10,6 +11,12 @@ interface EmergencySheetProps {
 }
 
 export const EmergencySheet: React.FC<EmergencySheetProps> = ({ isOpen, onClose, persona }) => {
+  useEffect(() => {
+    if (isOpen) {
+      packetLogger.logEmergencyAccess('City General ER Triage', 'Emergency Break-Glass Read');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const { emergencyInfo } = persona;
