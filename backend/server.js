@@ -32,7 +32,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     service: 'MediVault Core Backend API (Phase 4 Active)',
-    network: 'Polygon Amoy Testnet (80002) / Local Hardhat (31337)',
+    network: 'MST Testnet (91562037) / MST Mainnet (4646)',
     modules: ['HealthID Generator', 'HMAC-SHA256', 'AES-256-GCM', 'On-Chain Access Gate', 'Relayer Service', 'Integrity Verifier'],
     timestamp: new Date().toISOString()
   });
